@@ -34,6 +34,8 @@ AC_LANG([C++])			# check for C++ support
 AC_PROG_CXX				# check for C++ compiler support
 AC_PROG_INSTALL			# check for 'install'
 AC_PROG_LN_S			# check for 'ln -s'
+AC_PROG_YACC			# check for yacc-compatible parser generator
+AC_PROG_LEX				# check for lex-compatible lexer generator
 
 # check for specific, required compiler/preprocessor characteristics
 ####################################################################

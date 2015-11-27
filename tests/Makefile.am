@@ -93,14 +93,14 @@ libgtest_main_la_LIBADD = libgtest.la
 
 # List all files containing mock classes. Those are not compiled directly and
 # need to be added to the EXTRA_DIST files, to be included distributions.
-MOCK_FILES = \
+MOCK_FILES =
 
 # To all tests, link the library that we want to test (libdynasp.la), and all
 # the test libraries we want to use for writing unit tests (see above section).
 LDADD += $(top_srcdir)/libdynasp.la libgtest.la libgtest_main.la
 
 # tell automake which test binaries to build
-check_PROGRAMS = \
+check_PROGRAMS =
 
 # tell automake that for each program listed in PROGRAMS above, if no SOURCES
 # are given it should try and build it from the single source file <prog>.cpp,

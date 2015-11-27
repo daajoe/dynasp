@@ -42,7 +42,7 @@ libdynasp_la_SOURCES = \
 ############################
 
 # Link the main library (libdynasp.la) to all programs.
-LDADD += libdynasp.la
+LDADD = libdynasp.la
 
 # tell automake which programs to build
 bin_PROGRAMS = dynasp

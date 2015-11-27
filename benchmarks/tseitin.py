@@ -95,6 +95,9 @@ if gridsize < 2:
 tree = randomTree(treesize)
 graph = buildGridFromTree(tree, gridsize)
 
+#
+# UNCOMMENT THIS TO OUTPUT A TSEITIN PROGRAM INSTANCE
+#
 print "vertex(v1)."
 print "capacity(v1, 1)."
 for i in range(1, tree.gridCount(gridsize)):
@@ -103,3 +106,25 @@ for i in range(1, tree.gridCount(gridsize)):
 
 for (i, j) in graph:
 	print "edge(v%d, v%d)." % (i + 1, j + 1)
+
+#
+# UNCOMMENT THIS TO OUTPUT A LARGE TWO-COLORABILITY RULE
+#
+#print "edge(red, green)."
+#print "edge(green, red)."
+#
+#print "true :-",
+#sep = ""
+#for (i, j) in graph:
+#	print sep + "edge(V%d, V%d)" % (i + 1, j + 1),
+#	sep = ", "
+#print "."
+#
+#
+# UNCOMMENT THIS TO OUTPUT AN OLD-STYLE TWO-COLORABILITY ASP PROGRAM
+#
+#for i in range(1, tree.gridCount(gridsize)):
+#	print "red(v%d) v blue(v%d)." % (i + 1, i + 1)
+#
+#for (i, j) in graph:
+#	print ":- red(v%d), red(v%d)." % (i + 1, j + 1)

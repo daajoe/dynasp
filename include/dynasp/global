@@ -1,0 +1,32 @@
+#ifndef DYNASP_DYNASP_GLOBAL_H_
+#define DYNASP_DYNASP_GLOBAL_H_
+
+// Generic helper definitions for shared library support
+#if defined _WIN32 || defined __CYGWIN__
+  #define DYNASP_HELPER_IMPORT __declspec(dllimport)
+  #define DYNASP_HELPER_EXPORT __declspec(dllexport)
+  #define DYNASP_HELPER_LOCAL
+#else
+  #if __GNUC__ >= 4
+    #define DYNASP_HELPER_IMPORT __attribute__ ((visibility ("default")))
+    #define DYNASP_HELPER_EXPORT __attribute__ ((visibility ("default")))
+    #define DYNASP_HELPER_LOCAL  __attribute__ ((visibility ("hidden")))
+  #else
+    #define DYNASP_HELPER_IMPORT
+    #define DYNASP_HELPER_EXPORT
+    #define DYNASP_HELPER_LOCAL
+  #endif
+#endif
+
+// Now we use the generic helper definitions above to define DYNASP_API.
+// DYNASP_API is used for the public API symbols. It either imports or exports
+// (or does nothing for a static build)
+#ifdef DYNASP_EXPORTS // defined when building (i.e. not using) libdynasp
+  #define DYNASP_API DYNASP_HELPER_EXPORT
+#else
+  #define DYNASP_API DYNASP_HELPER_IMPORT
+#endif // DYNASP_EXPORTS
+#define DYNASP_LOCAL DYNASP_HELPER_LOCAL
+
+#endif // DYNASP_DYNASP_GLOBAL_H_
+

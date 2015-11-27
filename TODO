@@ -1,0 +1,2 @@
+- public parser interface, plus public factory that returns different parsers
+	* method to parse intput, return IInstance

@@ -8,6 +8,12 @@ ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 # tell automake to pass certain flags to 'ctags'
 AM_CTAGSFLAGS = --extra=+f
 
+# tell automake to pass certain flags to 'lex'
+AM_LFLAGS = -olex.yy.c
+
+# tell automake to pass certain flags to 'yacc'
+AM_YFLAGS = --defines=y.tab.h -oy.tab.c
+
 #FIXME: don't assume GCC, do feature detection in configure.ac
 # tell automake to pass certain CPPFLAGS to the compiler
 AM_CPPFLAGS = \
@@ -26,16 +32,63 @@ AM_CPPFLAGS = \
 ############################
 
 # tell automake which libraries to build
-noinst_LTLIBRARIES = libdynasp.la
+lib_LTLIBRARIES = libdynasp.la
 
 #----------------------------#
 # libdynasp.la build options #
 #----------------------------#
 
+BUILT_SOURCES = \
+	src/parsers/LParseParser.cc \
+	src/parsers/LParseParser.hh \
+	src/parsers/LParseLexer.cc \
+	stack.hh \
+	position.hh \
+	location.hh
+
+CLEANFILES = $(BUILT_SOURCES)
+
+# list the names of the public header files of the libdynasp.la library
+libdynasp_la_include_HEADERS = \
+	include/dynasp/main \
+	include/dynasp/global
+	\
+	include/dynasp/LParseLexer.hpp \
+	include/dynasp/LParseParser.hpp
+
 # list all source code files for the libdynasp.la library
 libdynasp_la_SOURCES = \
+	src/assembly.cpp \
+	\
+	src/parsers/LParseParser.yy \
+	src/parsers/LParseLexer.ll \
+	\
 	src/util/errorhandling.cpp \
 	src/util/errorhandling.hpp
+
+# tell automake that the installation directory for public header files of the
+# libdynasp.la library should be a subfolder in the default ${includedir}
+libdynasp_la_includedir = ${includedir}/dynasp
+
+# tell libtool to pass certain LDFLAGS to the compiler when building libsharp.la
+#
+# 1) Specify the Shared Object Version Information for the library, which
+# consists of three numbers: CURRENT:REVISION:AGE
+#
+#   CURRENT: This is the version of the (external) ABI in the library.
+#       Increase if the ABI changes (i.e. interfaces added or changed)!
+#
+#   REVISION: The revision represents how often the library was changed for a
+#       given ABI version. Increase this whenever the library code changes, but
+#       reset to 0 when incrementing CURRENT.
+#
+#   AGE: This is the difference between the oldest and newest ABI version
+#       that the library is backwards compatible with (e.g. if CURRENT is 4,
+#       but we are backwards compatible to ABI version 1, then AGE = 3). Set to
+#       0 if there is a backwards-compatibility breaking change, otherwise
+#       increase by 1 if CURRENT was increased by one.
+#
+libdynasp_la_LDFLAGS = -version-info 0:0:0
 
 ############################
 # PROGRAMS TO BUILD:	   #

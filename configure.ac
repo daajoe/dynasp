@@ -87,6 +87,12 @@ AC_SEARCH_LIBS([_ZTVN3htd11IHypergraphE], [htd],
 	        [GMP_LIBS=$ac_cv_search__ZTVN3htd11IHypergraphE],
 	        [AC_MSG_FAILURE([libhtd not found])])
 
+# check for htd library
+#TODO: check for "none required" output of AC_SEARCH_LIBS
+AC_SEARCH_LIBS([sharp_version], [sharp],
+	        [GMP_LIBS=$ac_cv_search_sharp_version],
+	        [AC_MSG_FAILURE([libsharp not found])])
+
 # if enabled, check for GNU MP library
 #TODO: check for "none required" output of AC_SEARCH_LIBS
 AS_IF([test "x$with_gmp" = xyes],
@@ -112,6 +118,10 @@ AC_LANG_PUSH([C++])
 # check for htd library header
 AC_CHECK_HEADER([htd/main], [],
 		[AC_MSG_FAILURE([libhtd library header not found])])
+
+# check for htd library header
+AC_CHECK_HEADER([sharp/main], [],
+		[AC_MSG_FAILURE([libsharp library header not found])])
 
 # if enabled, check for GNU MP C++ header
 AS_IF([test "x$with_gmp" = xyes], 

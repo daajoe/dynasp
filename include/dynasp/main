@@ -1,0 +1,7 @@
+#include <dynasp/global>
+#include <dynasp/Atom.hpp>
+#include <dynasp/DynAspAlgorithm.hpp>
+#include <dynasp/IGroundAspInstance.hpp>
+#include <dynasp/IGroundAspRule.hpp>
+#include <dynasp/IParser.hpp>
+#include <dynasp/Parser.hpp>

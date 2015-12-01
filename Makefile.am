@@ -39,8 +39,8 @@ lib_LTLIBRARIES = libdynasp.la
 #----------------------------#
 
 BUILT_SOURCES = \
-	src/parsers/LParseParser.cc \
-	src/parsers/LParseParser.hh \
+	src/parsers/LParseBisonParser.cc \
+	src/parsers/LParseBisonParser.hh \
 	src/parsers/LParseLexer.cc \
 	stack.hh \
 	position.hh \
@@ -51,17 +51,34 @@ CLEANFILES = $(BUILT_SOURCES)
 # list the names of the public header files of the libdynasp.la library
 libdynasp_la_include_HEADERS = \
 	include/dynasp/main \
-	include/dynasp/global
+	include/dynasp/global \
 	\
-	include/dynasp/LParseLexer.hpp \
-	include/dynasp/LParseParser.hpp
+	include/dynasp/IParser.hpp \
+	include/dynasp/IGroundAspInstance.hpp \
+	include/dynasp/IGroundAspRule.hpp \
+	\
+	include/dynasp/Atom.hpp \
+	include/dynasp/Parser.hpp
 
 # list all source code files for the libdynasp.la library
 libdynasp_la_SOURCES = \
 	src/assembly.cpp \
 	\
-	src/parsers/LParseParser.yy \
+	src/Parser.cpp \
+	\
+	src/algorithms/DynAspAlgorithm.cpp \
+	\
+	src/instances/GroundAspInstance.cpp \
+	src/instances/GroundAspInstance.hpp \
+	src/instances/GroundAspRule.cpp \
+	src/instances/GroundAspRule.hpp \
+	\
+	src/parsers/LParseBisonParser.hpp \
+	src/parsers/LParseBisonParser.yy \
+	src/parsers/LParseLexer.hpp \
 	src/parsers/LParseLexer.ll \
+	src/parsers/LParseParser.cpp \
+	src/parsers/LParseParser.hpp \
 	\
 	src/util/errorhandling.cpp \
 	src/util/errorhandling.hpp

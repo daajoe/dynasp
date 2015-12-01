@@ -6,10 +6,8 @@
 
 extern "C"
 {
-	DYNASP_API const char *dynasp_version();
-}
-
-const char *dynasp_version()
-{
-	return VERSION;
+	DYNASP_API const char *dynasp_version()
+	{
+		return VERSION;
+	}
 }

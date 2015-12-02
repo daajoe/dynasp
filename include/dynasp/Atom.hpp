@@ -5,9 +5,12 @@
 
 #include <htd/main>
 
+#include <vector>
+
 namespace dynasp
 {
 	typedef htd::vertex_t atom_t;
+	typedef std::vector<atom_t> atom_vector;
 
 	struct Atom
 	{

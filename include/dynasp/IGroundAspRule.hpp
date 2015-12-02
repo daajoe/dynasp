@@ -29,9 +29,9 @@ namespace dynasp
 		virtual ~IGroundAspRule() = 0;
 
 		virtual void setHead(atom_t atom) = 0;
-		virtual void setHead(const std::vector<atom_t> &atoms) = 0;
-		virtual void setPositiveBody(const std::vector<atom_t> &atoms) = 0;
-		virtual void setNegativeBody(const std::vector<atom_t> &atoms) = 0;
+		virtual void setHead(const atom_vector &atoms) = 0;
+		virtual void setPositiveBody(const atom_vector &atoms) = 0;
+		virtual void setNegativeBody(const atom_vector &atoms) = 0;
 		virtual void setMinimumTrueBodyAtoms(std::size_t count) = 0;
 
 		virtual const_iterator begin() const = 0;

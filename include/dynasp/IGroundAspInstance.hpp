@@ -25,7 +25,7 @@ namespace dynasp
 		virtual ~IGroundAspInstance() = 0;
 
 		virtual void addAtomName(atom_t atom, const std::string &name) = 0;
-		virtual void addAtom(atom_t atom) = 0;
+		virtual void addAtom(htd::vertex_t vertex) = 0;
 		virtual void addRule(IGroundAspRule *rule) = 0;
 		virtual void addWeight(
 				atom_t atom,
@@ -34,6 +34,9 @@ namespace dynasp
 
 		virtual IGroundAspRule *createEmptyRule(
 				IGroundAspRule::Type type) const = 0;
+
+		virtual bool isRule(htd::vertex_t vertex) const = 0;
+		virtual bool isAtom(htd::vertex_t vertex) const = 0;
 
 	}; // class IGroundAspInstance
 

@@ -67,6 +67,8 @@ libdynasp_la_SOURCES = \
 	src/Parser.cpp \
 	\
 	src/algorithms/DynAspAlgorithm.cpp \
+	src/algorithms/ClassicDynAspTuple.cpp \
+	src/algorithms/ClassicDynAspTuple.hpp \
 	\
 	src/instances/GroundAspInstance.cpp \
 	src/instances/GroundAspInstance.hpp \

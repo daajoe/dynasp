@@ -17,7 +17,7 @@ namespace dynasp
 		virtual ~GroundAspInstance();
 
 		virtual void addAtomName(atom_t atom, const std::string &name);
-		virtual void addAtom(atom_t atom);
+		virtual void addAtom(htd::vertex_t vertex);
 		virtual void addRule(IGroundAspRule *rule);
 		virtual void addWeight(
 				atom_t atom,
@@ -27,6 +27,9 @@ namespace dynasp
 		virtual htd::IHypergraph *toHypergraph() const;
 		virtual IGroundAspRule *createEmptyRule(
 				IGroundAspRule::Type type) const;
+
+		virtual bool isRule(htd::vertex_t vertex) const;
+		virtual bool isAtom(htd::vertex_t vertex) const;
 
 	private:
 		atom_t maxAtom_;

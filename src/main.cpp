@@ -13,10 +13,6 @@ using namespace std;
 int main()
 {
 	IGroundAspInstance *i = Parser::get()->parse(&std::cin);
-	cout << i << endl;
-
-	IHypergraph *h = i->toHypergraph();
-	cout << h << " " << h->vertexCount() << " " << h->edgeCount() << endl;
 
 	MinFillOrderingAlgorithmImpl o;
 	BucketEliminationTreeDecompositionAlgorithm a(o);

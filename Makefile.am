@@ -53,17 +53,21 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/main \
 	include/dynasp/global \
 	\
+	include/dynasp/IFactory.hpp \
 	include/dynasp/IParser.hpp \
 	include/dynasp/IGroundAspInstance.hpp \
 	include/dynasp/IGroundAspRule.hpp \
 	\
 	include/dynasp/Atom.hpp \
-	include/dynasp/Parser.hpp
+	include/dynasp/TreeNodeInfo.hpp \
+	include/dynasp/Parser.hpp \
+	include/dynasp/Factory.hpp
 
 # list all source code files for the libdynasp.la library
 libdynasp_la_SOURCES = \
 	src/assembly.cpp \
 	\
+	src/Factory.cpp \
 	src/Parser.cpp \
 	\
 	src/algorithms/DynAspAlgorithm.cpp \

@@ -9,6 +9,8 @@
 #include <utility>
 #include <stdexcept>
 
+#include "../debug.cpp"
+
 namespace dynasp
 {
 	using htd::IHypergraph;
@@ -18,6 +20,7 @@ namespace dynasp
 	using std::string;
 	using std::size_t;
 	using std::make_pair;
+	using std::pair;
 
 	using htd::vertex_t;
 
@@ -68,17 +71,16 @@ namespace dynasp
 			for(const atom_t &atom : *rule)
 				edge.push_back(atom);
 
+			//FIXME: debug
+			std::cout << "edge: ";
+			printColl(edge);
+			std::cout << std::endl;
+			//FIXME: end debug
+
 			ret->addEdge(edge);
 		}
 
 		return ret;
-	}
-
-	IGroundAspRule *GroundAspInstance::createEmptyRule(
-			IGroundAspRule::Type type) const
-	{
-		//FIXME: Implement dependency injection light
-		return new GroundAspRule(type);
 	}
 
 	bool GroundAspInstance::isRule(vertex_t vertex) const
@@ -89,6 +91,14 @@ namespace dynasp
 	bool GroundAspInstance::isAtom(vertex_t vertex) const
 	{
 		return vertex <= maxAtom_;
+	}
+
+	const IGroundAspRule &GroundAspInstance::rule(htd::vertex_t rule) const
+	{
+		if(!isRule(rule))
+			throw std::invalid_argument("Argument 'rule' is not a rule.");
+
+		return *rules_[rule - maxAtom_ - 1];
 	}
 
 	IMutableHypergraph *GroundAspInstance::createEmptyHypergraph() const

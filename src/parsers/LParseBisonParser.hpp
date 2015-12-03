@@ -35,6 +35,7 @@ namespace dynasp
 #include "location.hh"
 
 #include <dynasp/IGroundAspInstance.hpp>
+#include <dynasp/Factory.hpp>
 
 #include "LParseBisonParser.hh"
 

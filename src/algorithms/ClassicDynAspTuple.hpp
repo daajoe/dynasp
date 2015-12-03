@@ -23,8 +23,7 @@ namespace dynasp
 		virtual std::size_t hash() const;
 
 		virtual void introduce(
-				const atom_vector &atoms,
-				const IGroundAspInstance &instance,
+				const TreeNodeInfo &info,
 				sharp::ITupleSet &outputTuples) const;
 
 		virtual IDynAspTuple *project(const atom_vector &atoms) const;

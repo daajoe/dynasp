@@ -27,3 +27,5 @@
 - remove custom Iterator implementation from GroundAspRule, once the relevant thing is in sharp
 
 - IDynAspTuple: move hash struct implementations into cpp file
+
+- get rid of debug.cpp, make some correct debugging code

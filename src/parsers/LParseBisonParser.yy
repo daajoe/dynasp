@@ -73,8 +73,8 @@ rules	: 	rules rule
 
 hlist	: 	hlist head
 	  		{
-				$<vector>$->push_back($<number>2 - 1);
-				instance.addAtom($<number>2 - 1);
+				$<vector>$->push_back($<number>2);
+				instance.addAtom($<number>2);
 			}
 		|	{ $<vector>$ = new std::vector<std::size_t>(); }
 		;
@@ -128,7 +128,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>3 - $<number>4,
 						$<vector>6->size());
 
-				$<rule>$ = instance.createEmptyRule(IGroundAspRule::STANDARD);
+				$<rule>$ = Factory::createRule();
 				$<rule>$->setHead($<number>2);
 				$<rule>$->setPositiveBody(*$<vector>6);
 				$<rule>$->setNegativeBody(*$<vector>5);
@@ -144,7 +144,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>3 - $<number>4,
 						$<vector>7->size());
 
-				$<rule>$ = instance.createEmptyRule(IGroundAspRule::STANDARD);
+				$<rule>$ = Factory::createRule();
 				$<rule>$->setHead($<number>2);
 				$<rule>$->setPositiveBody(*$<vector>7);
 				$<rule>$->setNegativeBody(*$<vector>6);
@@ -162,8 +162,9 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>4 - $<number>5,
 						$<vector>7->size());
 
-				$<rule>$ = instance.createEmptyRule(IGroundAspRule::CHOICE);
+				$<rule>$ = Factory::createRule();
 				$<rule>$->setHead(*$<vector>3);
+				$<rule>$->setChoiceHead();
 				$<rule>$->setPositiveBody(*$<vector>7);
 				$<rule>$->setNegativeBody(*$<vector>6);
 
@@ -211,7 +212,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>4 - $<number>5,
 						$<vector>7->size());
 
-				$<rule>$ = instance.createEmptyRule(IGroundAspRule::STANDARD);
+				$<rule>$ = Factory::createRule();
 				$<rule>$->setHead(*$<vector>3);
 				$<rule>$->setPositiveBody(*$<vector>7);
 				$<rule>$->setNegativeBody(*$<vector>6);

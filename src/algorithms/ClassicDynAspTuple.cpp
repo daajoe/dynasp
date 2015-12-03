@@ -4,16 +4,23 @@
 
 #include "ClassicDynAspTuple.hpp"
 
+#include <stack>
+
+#include "../debug.cpp"
+
 namespace dynasp
 {
+	using htd::vertex_t;
+
 	using std::size_t;
 	using std::unordered_set;
+	using std::stack;
 
 	ClassicDynAspTuple::ClassicDynAspTuple() { }
 
 	ClassicDynAspTuple::~ClassicDynAspTuple() { }
 
-	virtual bool ClassicDynAspTuple::merge(const IDynAspTuple &tuple)
+	bool ClassicDynAspTuple::merge(const IDynAspTuple &tuple)
 	{
 		const ClassicDynAspTuple &mergee = 
 			static_cast<const ClassicDynAspTuple &>(tuple);
@@ -49,11 +56,59 @@ namespace dynasp
 	}
 
 	void ClassicDynAspTuple::introduce(
-			const atom_vector &atoms,
-			const IGroundAspInstance &instance,
+			const TreeNodeInfo &info,
 			sharp::ITupleSet &outputTuples) const
 	{
-		//TODO
+		atom_vector trueAtoms(trueAtoms_.begin(), trueAtoms_.end());
+		atom_vector falseAtoms;
+
+		for(const atom_t atom : info.rememberedAtoms)
+			if(trueAtoms_.find(atom) == trueAtoms_.end())
+				falseAtoms.push_back(atom);
+
+		//FIXME: take into account assignment knowledge of info.instance
+		//FIXME: can be much better with stack-based subset enumeration
+		std::cout << "\t" << info.introducedAtoms.size() << std::endl;
+		size_t numIntro = info.introducedAtoms.size();
+		for(size_t subset = 0; subset < (1u << numIntro); ++subset)
+		{
+			//FIXME: debug code
+			std::cout << "\ttuple t";
+			//FIXME: end debug code
+
+			for(size_t bit = 0; bit < numIntro; ++bit)
+				if((subset >> bit) & 1)
+					trueAtoms.push_back(info.introducedAtoms[bit]);
+				else
+					falseAtoms.push_back(info.introducedAtoms[bit]);
+
+			//FIXME: debug
+			printColl(trueAtoms); std::cout << " f";
+			printColl(falseAtoms);
+			//FIXME: end debug
+
+			bool validTuple = true;
+			for(const vertex_t rule : info.introducedRules)
+				validTuple &= (-1 != info.instance.rule(rule).isTrue(
+									trueAtoms,
+									falseAtoms));
+			//FIXME: debug
+			std::cout << " " << (validTuple ? "yes" : "no") << std::endl;
+			//FIXME: end debug
+			
+			if(validTuple)
+			{
+				ClassicDynAspTuple *newTuple = new ClassicDynAspTuple();
+				newTuple->trueAtoms_.insert(
+						trueAtoms.begin(),
+						trueAtoms.end());
+				outputTuples.insert(newTuple);
+			}
+
+			for(size_t bit = 0; bit < numIntro; ++bit)
+				if((subset >> bit) & 1) trueAtoms.pop_back();
+				else falseAtoms.pop_back();
+		}
 	}
 
 	IDynAspTuple *ClassicDynAspTuple::project(const atom_vector &atoms) const
@@ -95,6 +150,8 @@ namespace dynasp
 		//TODO: adapt for certificates
 		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple();
 		newTuple->trueAtoms_ = trueAtoms_;
+		for(const atom_t atom : other.trueAtoms_)
+			newTuple->trueAtoms_.insert(atom);
 		return newTuple;
 	}
 

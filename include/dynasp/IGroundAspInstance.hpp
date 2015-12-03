@@ -11,6 +11,7 @@
 #include <htd/main>
 
 #include <string>
+#include <utility>
 #include <cstddef>
 
 namespace dynasp
@@ -32,11 +33,10 @@ namespace dynasp
 				bool negated,
 				std::size_t weight) = 0;
 
-		virtual IGroundAspRule *createEmptyRule(
-				IGroundAspRule::Type type) const = 0;
-
 		virtual bool isRule(htd::vertex_t vertex) const = 0;
 		virtual bool isAtom(htd::vertex_t vertex) const = 0;
+
+		virtual const IGroundAspRule &rule(htd::vertex_t rule) const = 0;
 
 	}; // class IGroundAspInstance
 

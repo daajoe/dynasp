@@ -4,13 +4,15 @@
 
 #include "GroundAspRule.hpp"
 
+#include "../debug.cpp"
+
 namespace dynasp
 {
 	using std::vector;
 	using std::size_t;
 
-	GroundAspRule::GroundAspRule(Type type)
-		: type_(type), minimumSet_(false), minimumTrueBodyAtoms_(0)
+	GroundAspRule::GroundAspRule()
+		: minimumSet_(false), choiceRule_(false), minimumTrueBodyAtoms_(0)
 	{ }
 
 	GroundAspRule::~GroundAspRule() { }
@@ -18,7 +20,7 @@ namespace dynasp
 	void GroundAspRule::setHead(atom_t atom)
 	{
 		head_.clear();
-
+		
 		if(atom != Atom::FALSE) head_.insert(atom);
 	}
 
@@ -50,14 +52,62 @@ namespace dynasp
 		minimumTrueBodyAtoms_ = count;
 	}
 
+	void GroundAspRule::setChoiceHead()
+	{
+		choiceRule_ = true;
+	}
+
 	void GroundAspRule::updateMinimumTrueBodyAtomCount()
 	{
 		if(minimumSet_) return;
 		minimumTrueBodyAtoms_ = positiveBody_.size() + negativeBody_.size();
 	}
 
+	int GroundAspRule::isTrue(
+			const atom_vector &trueAtoms,
+			const atom_vector &falseAtoms) const
+	{
+		if(choiceRule_) return true;
+
+		size_t trueBodyAtoms = positiveBody_.size() + negativeBody_.size();
+
+		size_t seenBodyAtoms = 0;
+		size_t seenHeadAtoms = 0;
+
+		for(const atom_t atom : trueAtoms)
+			if(head_.find(atom) != head_.end())
+				return 1; // known true
+			else if(negativeBody_.find(atom) != negativeBody_.end()
+					&& --trueBodyAtoms < minimumTrueBodyAtoms_)
+				return 1; // known true
+			else if(positiveBody_.find(atom) != positiveBody_.end())
+				++seenBodyAtoms;
+
+		for(const atom_t atom : falseAtoms)
+			if(positiveBody_.find(atom) != positiveBody_.end()
+			   && --trueBodyAtoms < minimumTrueBodyAtoms_)
+				return 1; // known true
+			else if(negativeBody_.find(atom) != negativeBody_.end())
+				++seenBodyAtoms;
+			else if(head_.find(atom) != head_.end())
+				++seenHeadAtoms;
+
+		if(seenHeadAtoms != head_.size()) return 0; // unknown
+		if(seenBodyAtoms < minimumTrueBodyAtoms_) return 0; // unknown
+		return -1; // known false
+	}
+
 	IGroundAspRule::const_iterator GroundAspRule::begin() const
 	{
+		//FIXME: debug
+		std::cout << this;
+		std::cout << " " << (choiceRule_ ? "c" : "h"); printColl(head_);
+		std::cout << " p"; printColl(positiveBody_);
+		std::cout << " n"; printColl(negativeBody_);
+		std::cout << " >= " << minimumTrueBodyAtoms_;
+		std::cout << std::endl;
+		//FIXME: end debug
+
 		return IGroundAspRule::const_iterator(new ConstEnumerator(
 					head_.begin(), head_.end(),
 					positiveBody_.begin(), positiveBody_.end(),
@@ -102,7 +152,7 @@ namespace dynasp
 		else if(pbegin_ != pend_) ++pbegin_;
 		else ++nbegin_;
 
-		ended_ |= hbegin_ == hend_ && pbegin_ == pend_ && nbegin_ == nend_;
+		ended_ |= (hbegin_ == hend_ && pbegin_ == pend_ && nbegin_ == nend_);
 	}
 
 	const atom_t &GroundAspRule::ConstEnumerator::get() const

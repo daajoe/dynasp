@@ -25,11 +25,11 @@ namespace dynasp
 				std::size_t weight);
 
 		virtual htd::IHypergraph *toHypergraph() const;
-		virtual IGroundAspRule *createEmptyRule(
-				IGroundAspRule::Type type) const;
 
 		virtual bool isRule(htd::vertex_t vertex) const;
 		virtual bool isAtom(htd::vertex_t vertex) const;
+
+		virtual const IGroundAspRule &rule(htd::vertex_t rule) const;
 
 	private:
 		atom_t maxAtom_;

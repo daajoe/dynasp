@@ -18,12 +18,6 @@ namespace dynasp
 		IGroundAspRule &operator=(IGroundAspRule &) { return *this; }
 
 	public:
-		enum Type
-		{
-			STANDARD,
-			CHOICE
-		};
-
 		typedef sharp::IConstEnumerator<atom_t>::Iterator const_iterator;
 
 		virtual ~IGroundAspRule() = 0;
@@ -33,6 +27,11 @@ namespace dynasp
 		virtual void setPositiveBody(const atom_vector &atoms) = 0;
 		virtual void setNegativeBody(const atom_vector &atoms) = 0;
 		virtual void setMinimumTrueBodyAtoms(std::size_t count) = 0;
+		virtual void setChoiceHead() = 0;
+
+		virtual int isTrue(
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms) const = 0;
 
 		virtual const_iterator begin() const = 0;
 		virtual const_iterator end() const = 0;

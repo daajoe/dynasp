@@ -12,7 +12,7 @@ namespace dynasp
 	class DYNASP_LOCAL GroundAspRule : public IGroundAspRule
 	{
 	public:
-		GroundAspRule(Type type);
+		GroundAspRule();
 		virtual ~GroundAspRule();
 
 		virtual void setHead(atom_t atom);
@@ -20,13 +20,18 @@ namespace dynasp
 		virtual void setPositiveBody(const std::vector<atom_t> &atoms);
 		virtual void setNegativeBody(const std::vector<atom_t> &atoms);
 		virtual void setMinimumTrueBodyAtoms(std::size_t count);
+		virtual void setChoiceHead();
+
+		virtual int isTrue(
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms) const;
 
 		virtual const_iterator begin() const;
 		virtual const_iterator end() const;
 
 	private:
-		Type type_;
 		bool minimumSet_;
+		bool choiceRule_;
 		std::size_t minimumTrueBodyAtoms_;
 		std::unordered_set<atom_t> head_;
 		std::unordered_set<atom_t> positiveBody_;
@@ -34,6 +39,7 @@ namespace dynasp
 
 		void updateMinimumTrueBodyAtomCount();
 
+		//FIXME: remove, take sharp-provided templates
 		class ConstEnumerator : public sharp::IConstEnumerator<atom_t>
 		{
 		private:

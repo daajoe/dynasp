@@ -3,6 +3,8 @@
 
 #include <dynasp/global>
 
+#include <dynasp/TreeNodeInfo.hpp>
+
 #include <sharp/main>
 
 #include <htd/main>
@@ -19,7 +21,6 @@ namespace dynasp
 
 	public:
 		virtual ~IDynAspTuple() = 0;
-
 		
 		virtual bool merge(const IDynAspTuple &tuple) = 0;
 
@@ -27,8 +28,7 @@ namespace dynasp
 		virtual std::size_t mergeHash() const = 0;
 
 		virtual void introduce(
-				const atom_vector &atoms,
-				const IGroundAspInstance &instance,
+				const TreeNodeInfo &info,
 				sharp::ITupleSet &outputTuples) const = 0;
 
 		virtual IDynAspTuple *project(const atom_vector &atoms) const = 0;
@@ -51,15 +51,17 @@ namespace dynasp
 
 		struct join_hash
 		{
-			join_hash(const atom_vector &joinAtoms) : joinAtoms(joinAtoms) { }
+			join_hash(const htd::vertex_container &joinVertices)
+				: joinVertices(&joinVertices)
+			{ }
 
 			std::size_t operator()(const IDynAspTuple * const &tuple) const
 			{
-				return tuple->joinHash(joinAtoms);
+				return tuple->joinHash(*joinVertices);
 			}
 
-		private:
-			atom_vector joinAtoms;
+		//private:
+			const htd::vertex_container *joinVertices;
 		};
 
 	}; // class IDynAspTuple

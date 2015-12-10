@@ -129,9 +129,12 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<vector>6->size());
 
 				$<rule>$ = Factory::createRule();
-				$<rule>$->setHead($<number>2);
-				$<rule>$->setPositiveBody(*$<vector>6);
-				$<rule>$->setNegativeBody(*$<vector>5);
+
+				$<rule>$->addHeadAtom($<number>2);
+				for(atom_t atom : *$<vector>6)
+					$<rule>$->addPositiveBodyAtom(atom);
+				for(atom_t atom : *$<vector>5)
+					$<rule>$->addNegativeBodyAtom(atom);
 
 				delete $<vector>5;
 				delete $<vector>6;
@@ -145,10 +148,13 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<vector>7->size());
 
 				$<rule>$ = Factory::createRule();
-				$<rule>$->setHead($<number>2);
-				$<rule>$->setPositiveBody(*$<vector>7);
-				$<rule>$->setNegativeBody(*$<vector>6);
-				$<rule>$->setMinimumTrueBodyAtoms($<number>5);
+
+				$<rule>$->addHeadAtom($<number>2);
+				for(atom_t atom : *$<vector>7)
+					$<rule>$->addPositiveBodyAtom(atom);
+				for(atom_t atom : *$<vector>6)
+					$<rule>$->addNegativeBodyAtom(atom);
+				$<rule>$->setMinimumBodyWeight($<number>5);
 
 				delete $<vector>6;
 				delete $<vector>7;
@@ -163,19 +169,42 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<vector>7->size());
 
 				$<rule>$ = Factory::createRule();
-				$<rule>$->setHead(*$<vector>3);
-				$<rule>$->setChoiceHead();
-				$<rule>$->setPositiveBody(*$<vector>7);
-				$<rule>$->setNegativeBody(*$<vector>6);
 
+				$<rule>$->makeChoiceHead();
+				for(atom_t atom : *$<vector>3)
+					$<rule>$->addHeadAtom(atom);
+				for(atom_t atom : *$<vector>7)
+					$<rule>$->addPositiveBodyAtom(atom);
+				for(atom_t atom : *$<vector>6)
+					$<rule>$->addNegativeBodyAtom(atom);
+	
 				delete $<vector>3;
 				delete $<vector>6;
 				delete $<vector>7;
 			}
 
- 		| 	WEIGHT_TYPE HEAD BOUND LITLISTCNT LITLISTNCNT nlist list wlist
+ 		| 	WEIGHT_TYPE head BOUND LITLISTCNT LITLISTNCNT nlist list wlist
 			{
-				error(@$, "Weight rules are not supported... ignored");
+				CHECK("#neg", @5, $<number>5, $<vector>6->size());
+				CHECK("#weights", @4, $<number>4, $<vector>8->size());
+				CHECK(	"#lit - #neg",
+						@4,
+						$<number>4 - $<number>5,
+						$<vector>7->size());
+
+				$<rule>$ = Factory::createRule();
+
+				int pos = 0;
+				$<rule>$->addHeadAtom($<number>2);
+				for(atom_t atom : *$<vector>6)
+					$<rule>$->addNegativeBodyAtom(atom, $<vector>8->at(pos++));
+				for(atom_t atom : *$<vector>7)
+					$<rule>$->addPositiveBodyAtom(atom, $<vector>8->at(pos++));
+				$<rule>$->setMinimumBodyWeight($<number>3);
+
+				delete $<vector>6;
+				delete $<vector>7;
+				delete $<vector>8;
 			}
 		| 	MIN_TYPE UWORD LITLISTCNT LITLISTNCNT nlist list wlist
 			{
@@ -191,17 +220,19 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 					instance.addWeight(
 							(*$<vector>5)[listIndex],
 							true,
-							(*$<vector>7)[++weightIndex]);
+							(*$<vector>7)[weightIndex++]);
 
 				for(listIndex = 0; listIndex < $<vector>6->size(); ++listIndex)
 					instance.addWeight(
 							(*$<vector>6)[listIndex],
 							false,
-							(*$<vector>7)[++weightIndex]);
+							(*$<vector>7)[weightIndex++]);
 
 				delete $<vector>5;
 				delete $<vector>6;
 				delete $<vector>7;
+
+				$<rule>$ = nullptr;
 			}
 		| 	BASIC_EXT_TYPE HEAD_CNT hlist LITLISTCNT LITLISTNCNT nlist list
 			{
@@ -213,10 +244,14 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<vector>7->size());
 
 				$<rule>$ = Factory::createRule();
-				$<rule>$->setHead(*$<vector>3);
-				$<rule>$->setPositiveBody(*$<vector>7);
-				$<rule>$->setNegativeBody(*$<vector>6);
-
+			
+				for(atom_t atom : *$<vector>3)
+					$<rule>$->addHeadAtom(atom);
+				for(atom_t atom : *$<vector>7)
+					$<rule>$->addPositiveBodyAtom(atom);
+				for(atom_t atom : *$<vector>6)
+					$<rule>$->addNegativeBodyAtom(atom);
+	
 				delete $<vector>3;
 				delete $<vector>6;
 				delete $<vector>7;

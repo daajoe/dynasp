@@ -4,9 +4,54 @@
 #include <dynasp/global>
 
 #include <dynasp/IDynAspTuple.hpp>
+#include <dynasp/IGroundAspRule.hpp>
 
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
+
+namespace dynasp
+{
+	struct DYNASP_LOCAL DynAspCertificate
+	{
+		std::unordered_set<atom_t> atoms;
+		std::unordered_map<rule_t, IGroundAspRule::SatisfiabilityInfo>
+			rules; // rules for which we don't know yet (sat/unsat)
+
+		bool operator==(const DynAspCertificate &other) const
+		{
+			return atoms == other.atoms && rules == other.rules;
+		}
+	}; // struct DynAspCertificate
+
+} // namespace dynasp
+
+namespace std
+{
+	template<>
+	struct hash<dynasp::DynAspCertificate>
+	{
+		size_t operator()(
+				const dynasp::DynAspCertificate &cert) const
+		{
+			size_t hash = 0;
+			for(dynasp::atom_t atom : cert.atoms)
+				hash += (13 ^ atom) * 57;
+			for(auto pair : cert.rules)
+				hash += ((((((((13 
+						^ pair.first)
+						* 57)
+						^ pair.second.minBodyWeight)
+						* 57)
+						^ pair.second.maxBodyWeight)
+						* 57)
+						^ pair.second.seenHeadAtoms)
+						* 57);
+			return hash;
+		}
+	};
+
+} // namespace std
 
 namespace dynasp
 {
@@ -26,22 +71,23 @@ namespace dynasp
 				const TreeNodeInfo &info,
 				sharp::ITupleSet &outputTuples) const;
 
-		virtual IDynAspTuple *project(const atom_vector &atoms) const;
-
-		virtual IDynAspTuple *project(
-				atom_vector::const_iterator begin,
-				atom_vector::const_iterator end) const;
+		virtual IDynAspTuple *project(const TreeNodeInfo &info) const;
 
 		virtual IDynAspTuple *join(
-				const atom_vector &atoms,
+				const TreeNodeInfo &info,
+				const atom_vector &joinAtoms,
 				const IDynAspTuple &tuple) const;
 
 		virtual bool operator==(const ITuple &other) const;
 
 	private:
-		std::unordered_set<atom_t> trueAtoms_;
+		std::size_t weight_;
+		std::size_t solutions_;
+		std::unordered_set<atom_t> atoms_;
+		std::unordered_map<rule_t, IGroundAspRule::SatisfiabilityInfo>
+			rules_; // rules for which we don't know yet (sat/unsat)
 
-		//TODO: certificates
+		std::unordered_set<DynAspCertificate> certificates_;
 
 	}; // class ClassicDynAspTuple
 

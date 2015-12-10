@@ -16,13 +16,13 @@ namespace dynasp
 	using htd::IHypergraph;
 	using htd::IMutableHypergraph;
 	using htd::hyperedge_t;
+	using htd::vertex_t;
 		
 	using std::string;
 	using std::size_t;
 	using std::make_pair;
 	using std::pair;
-
-	using htd::vertex_t;
+	using std::unordered_map;
 
 	GroundAspInstance::GroundAspInstance() : maxAtom_(1) { }
 
@@ -99,6 +99,23 @@ namespace dynasp
 			throw std::invalid_argument("Argument 'rule' is not a rule.");
 
 		return *rules_[rule - maxAtom_ - 1];
+	}
+
+	size_t GroundAspInstance::weight(
+			const atom_vector &trueAtoms,
+			const atom_vector &falseAtoms) const
+	{
+		size_t weight = 0;
+		unordered_map<atom_t, size_t>::const_iterator it;
+		for(atom_t atom : trueAtoms)
+			if((it = positiveAtomWeights_.find(atom))
+					!= positiveAtomWeights_.end())
+				weight += it->second;
+		for(atom_t atom : falseAtoms)
+			if((it = negativeAtomWeights_.find(atom))
+					!= negativeAtomWeights_.end())
+				weight += it->second;
+		return weight;
 	}
 
 	IMutableHypergraph *GroundAspInstance::createEmptyHypergraph() const

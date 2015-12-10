@@ -65,19 +65,14 @@ namespace dynasp
 			vertex_container()
 		};
 
-		decomposition.bagContent(node, info.atoms);
 		decomposition.rememberedVertices(node, info.rememberedAtoms);
 		decomposition.introducedVertices(node, info.introducedAtoms);
+		decomposition.forgottenVertices(node, info.forgottenAtoms);
 
-		if(sizeof(size_t) * CHAR_BIT < info.atoms.size())
+		//FIXME: remove bitvectors to calculate subsets, then this not needed
+		if(sizeof(size_t) * CHAR_BIT
+				< (info.rememberedAtoms.size() + info.introducedAtoms.size()))
 			throw std::runtime_error("Treewidth too high.");
-
-		//FIXME: do this via labeling functions
-		while(info.atoms.size() && info.instance.isRule(info.atoms.back()))
-		{
-			info.rules.push_back(info.atoms.back());
-			info.atoms.pop_back();
-		}
 
 		//FIXME: do this via labeling functions
 		while(info.rememberedAtoms.size()
@@ -95,23 +90,34 @@ namespace dynasp
 			info.introducedAtoms.pop_back();
 		}
 
+		//FIXME: do this via labeling functions
+		while(info.forgottenAtoms.size()
+				&& info.instance.isRule(info.forgottenAtoms.back()))
+		{
+			info.forgottenRules.push_back(info.forgottenAtoms.back());
+			info.forgottenAtoms.pop_back();
+		}
+
 		//FIXME: remove debug code below
-		std::cout << node << ": a";
-		printColl(info.atoms); std::cout << " r";
-		printColl(info.rules); std::cout << " ra";
+		std::cout << node << ": ra";
 		printColl(info.rememberedAtoms); std::cout << " rr";
 		printColl(info.rememberedRules); std::cout << " ia";
 		printColl(info.introducedAtoms); std::cout << " ir";
-		printColl(info.introducedRules); std::cout << " children: ";
+		printColl(info.introducedRules); std::cout << " fa";
+		printColl(info.forgottenAtoms); std::cout << " fr";
+		printColl(info.forgottenRules); std::cout << " children: ";
 		//FIXME: end debug code
 
 		size_t childCount = decomposition.childrenCount(node);
 		
-		vertex_container childBag, nextChildBag;
+		vertex_container nextChildBag;
+		unordered_set<vertex_t> joinBase;
+
 		if(childCount != 0)
 			decomposition.bagContent(
 					decomposition.child(node, 0),
 					nextChildBag);
+		joinBase.insert(nextChildBag.begin(), nextChildBag.end());
 
 		vertex_container v1, v2, *joinVertices = &v1, *nextJoinVertices = &v2;
 		unordered_set<IDynAspTuple *, IDynAspTuple::join_hash>
@@ -126,26 +132,27 @@ namespace dynasp
 		{
 			vertex_t child = decomposition.child(node, childIndex);
 
-			childBag.clear();
-			nextChildBag.swap(childBag);
-
 			if(childIndex + 1 < childCount)
 			{
+				nextChildBag.clear();
 				decomposition.bagContent(
 						decomposition.child(node, childIndex + 1),
 						nextChildBag);
 
 				//FIXME: Tree Decomposition should supply this
 				nextJoinVertices->clear();
-				set_intersection(childBag.begin(), childBag.end(),
-						nextChildBag.begin(), nextChildBag.end(),
-						back_inserter(*nextJoinVertices));
+				for(vertex_t vertex : nextChildBag)
+					if(joinBase.find(vertex) != joinBase.end())
+						nextJoinVertices->push_back(vertex);
+					else
+						joinBase.insert(vertex);
 			}
 
 			const ITupleSet &childTuples = tuples[child];
 
 			//FIXME: remove debug code below
-			std::cout << child << "(" << childTuples.size() << ",";
+			std::cout << child; printColl(*joinVertices);
+			std::cout << "(" << childTuples.size() << ",";
 			//FIXME: end debug code
 
 			unordered_set<IDynAspTuple *, IDynAspTuple::merge_hash>
@@ -157,8 +164,9 @@ namespace dynasp
 				const IDynAspTuple &childTuple =
 					static_cast<const IDynAspTuple &>(tuple);
 
-				IDynAspTuple *reducedTuple =
-					childTuple.project(info.rememberedAtoms);
+				IDynAspTuple *reducedTuple = childTuple.project(info);
+
+				if(!reducedTuple) continue;
 
 				// merge reduced tuples that are now the same
 				size_t bucketIndex = merged.bucket(reducedTuple);
@@ -208,7 +216,9 @@ namespace dynasp
 						 joinIter != prev.end(bucketIndex);
 						 ++joinIter)
 					if(nullptr != (tmp = (*joinIter)->join(
-									*joinVertices, *tuple)))
+									info,
+									*joinVertices,
+									*tuple)))
 						curr.insert(tmp);
 
 				delete tuple;

@@ -29,3 +29,7 @@
 - IDynAspTuple: move hash struct implementations into cpp file
 
 - get rid of debug.cpp, make some correct debugging code
+
+- order-independant and ordinary hasher as a separate helper class (for IDynAspTuple, etc.)
+	* quick call for just two numbers
+	* ?? incremental approach that returns intermediate (but completely usable) result at each step

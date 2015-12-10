@@ -59,6 +59,7 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/IGroundAspRule.hpp \
 	\
 	include/dynasp/Atom.hpp \
+	include/dynasp/Rule.hpp \
 	include/dynasp/TreeNodeInfo.hpp \
 	include/dynasp/Parser.hpp \
 	include/dynasp/Factory.hpp

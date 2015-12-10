@@ -20,18 +20,48 @@ namespace dynasp
 	public:
 		typedef sharp::IConstEnumerator<atom_t>::Iterator const_iterator;
 
+		struct SatisfiabilityInfo
+		{
+			bool satisfied;
+			bool unsatisfied;
+			std::size_t minBodyWeight;
+			std::size_t maxBodyWeight;
+			std::size_t seenHeadAtoms;
+
+			bool operator==(const SatisfiabilityInfo &other) const
+			{
+				return satisfied == other.satisfied
+					&& unsatisfied == other.unsatisfied
+					&& minBodyWeight == other.minBodyWeight
+					&& maxBodyWeight == other.maxBodyWeight
+					&& seenHeadAtoms == other.seenHeadAtoms;
+			}
+		};
+
 		virtual ~IGroundAspRule() = 0;
 
-		virtual void setHead(atom_t atom) = 0;
-		virtual void setHead(const atom_vector &atoms) = 0;
-		virtual void setPositiveBody(const atom_vector &atoms) = 0;
-		virtual void setNegativeBody(const atom_vector &atoms) = 0;
-		virtual void setMinimumTrueBodyAtoms(std::size_t count) = 0;
-		virtual void setChoiceHead() = 0;
+		virtual void addHeadAtom(atom_t atom) = 0;
+		virtual void makeChoiceHead() = 0;
+		virtual void addPositiveBodyAtom(atom_t atom) = 0;
+		virtual void addPositiveBodyAtom(atom_t atom, std::size_t weight) = 0;
+		virtual void addNegativeBodyAtom(atom_t atom) = 0;
+		virtual void addNegativeBodyAtom(atom_t atom, std::size_t weight) = 0;
+		virtual void setMinimumBodyWeight(std::size_t weight) = 0;
 
-		virtual int isTrue(
+		virtual SatisfiabilityInfo check(
 				const atom_vector &trueAtoms,
 				const atom_vector &falseAtoms) const = 0;
+
+		virtual SatisfiabilityInfo check(
+				const atom_vector &newTrueAtoms,
+				const atom_vector &newFalseAtoms,
+				SatisfiabilityInfo establishedInfo) const = 0;
+
+		virtual SatisfiabilityInfo check(
+				const atom_vector &sharedTrueAtoms,
+				const atom_vector &sharedFalseAtoms,
+				SatisfiabilityInfo establishedInfo1,
+				SatisfiabilityInfo establishedInfo2) const = 0;
 
 		virtual const_iterator begin() const = 0;
 		virtual const_iterator end() const = 0;

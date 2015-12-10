@@ -38,6 +38,10 @@ namespace dynasp
 
 		virtual const IGroundAspRule &rule(htd::vertex_t rule) const = 0;
 
+		virtual std::size_t weight(
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms) const = 0;
+
 	}; // class IGroundAspInstance
 
 	inline IGroundAspInstance::~IGroundAspInstance() { }

@@ -31,6 +31,10 @@ namespace dynasp
 
 		virtual const IGroundAspRule &rule(htd::vertex_t rule) const;
 
+		virtual std::size_t weight(
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms) const;
+
 	private:
 		atom_t maxAtom_;
 		std::unordered_map<atom_t, std::string> atomNames_;

@@ -3,6 +3,8 @@
 
 #include <dynasp/global>
 
+#include <dynasp/Atom.hpp>
+#include <dynasp/Rule.hpp>
 #include <dynasp/TreeNodeInfo.hpp>
 
 #include <sharp/main>
@@ -31,14 +33,11 @@ namespace dynasp
 				const TreeNodeInfo &info,
 				sharp::ITupleSet &outputTuples) const = 0;
 
-		virtual IDynAspTuple *project(const atom_vector &atoms) const = 0;
-
-		virtual IDynAspTuple *project(
-				atom_vector::const_iterator begin,
-				atom_vector::const_iterator end) const = 0;
+		virtual IDynAspTuple *project(const TreeNodeInfo &info) const = 0;
 
 		virtual IDynAspTuple *join(
-				const atom_vector &atoms,
+				const TreeNodeInfo &info,
+				const atom_vector &joinAtoms,
 				const IDynAspTuple &tuple) const = 0;
 
 		struct merge_hash

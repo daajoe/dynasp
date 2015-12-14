@@ -36,7 +36,7 @@ namespace dynasp
 
 	IDynAspTuple *Factory::createTuple()
 	{
-		if(!factory_) return new ClassicDynAspTuple();
+		if(!factory_) return new ClassicDynAspTuple(true);
 		return factory_->createTuple();
 	}
 

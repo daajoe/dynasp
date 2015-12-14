@@ -33,3 +33,10 @@
 - order-independant and ordinary hasher as a separate helper class (for IDynAspTuple, etc.)
 	* quick call for just two numbers
 	* ?? incremental approach that returns intermediate (but completely usable) result at each step
+
+- optimization: certificate where same == true is *exactly* the same as the corresponding model
+	* instead of evaluating all the rules again, copy rules_ to rules, and atoms_ to atoms. done.
+
+- in Tuple implementation: split long code blocks into methods
+	* private method for: certificate eval, rule check (done!), certificate join, etc...
+	* have short, readable code in each method

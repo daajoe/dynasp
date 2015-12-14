@@ -17,10 +17,13 @@ namespace dynasp
 		std::unordered_set<atom_t> atoms;
 		std::unordered_map<rule_t, IGroundAspRule::SatisfiabilityInfo>
 			rules; // rules for which we don't know yet (sat/unsat)
+		bool same; // certificate is the same as the model it belongs to
 
 		bool operator==(const DynAspCertificate &other) const
 		{
-			return atoms == other.atoms && rules == other.rules;
+			return atoms == other.atoms
+				&& rules == other.rules
+				&& same == other.same;
 		}
 	}; // struct DynAspCertificate
 
@@ -34,6 +37,8 @@ namespace std
 		size_t operator()(
 				const dynasp::DynAspCertificate &cert) const
 		{
+			//TODO: better hash function
+			//TODO: move to cpp file
 			size_t hash = 0;
 			for(dynasp::atom_t atom : cert.atoms)
 				hash += (13 ^ atom) * 57;
@@ -47,6 +52,7 @@ namespace std
 						* 57)
 						^ pair.second.seenHeadAtoms)
 						* 57);
+			if(cert.same) hash += 13 * 57;
 			return hash;
 		}
 	};
@@ -58,7 +64,7 @@ namespace dynasp
 	class DYNASP_LOCAL ClassicDynAspTuple : public IDynAspTuple
 	{
 	public:
-		ClassicDynAspTuple();
+		ClassicDynAspTuple(bool initial);
 		virtual ~ClassicDynAspTuple();
 
 		virtual bool merge(const IDynAspTuple &tuple);
@@ -81,13 +87,41 @@ namespace dynasp
 		virtual bool operator==(const ITuple &other) const;
 
 	private:
+		typedef std::unordered_set<atom_t> atom_set;
+		typedef std::unordered_set<DynAspCertificate> certificate_set;
+		typedef std::unordered_map<rule_t, IGroundAspRule::SatisfiabilityInfo>
+			rule_map;
+
 		std::size_t weight_;
 		std::size_t solutions_;
-		std::unordered_set<atom_t> atoms_;
-		std::unordered_map<rule_t, IGroundAspRule::SatisfiabilityInfo>
-			rules_; // rules for which we don't know yet (sat/unsat)
+		atom_set atoms_;
+		rule_map rules_; // rules for which we don't know yet (sat/unsat)
+		certificate_set certificates_;
 
-		std::unordered_set<DynAspCertificate> certificates_;
+		static bool checkExistingRules(
+				const IGroundAspInstance &instance,
+				const atom_vector &newTrueAtoms,
+				const atom_vector &newFalseAtoms,
+				const atom_vector &newReductFalseAtoms,
+				const rule_map &existingRules,
+				rule_map &outputRules);
+
+		static bool checkNewRules(
+				const IGroundAspInstance &instance,
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms,
+				const atom_vector &reductFalseAtoms,
+				const rule_vector &newRules,
+				rule_map &outputRules);
+
+		static bool checkJoinRules(
+				const IGroundAspInstance &instance,
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms,
+				const rule_vector &rules,
+				const rule_map &leftRules,
+				const rule_map &rightRules,
+				rule_map &outputRules);
 
 	}; // class ClassicDynAspTuple
 

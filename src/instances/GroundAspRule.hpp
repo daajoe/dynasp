@@ -25,11 +25,13 @@ namespace dynasp
 
 		virtual SatisfiabilityInfo check(
 				const atom_vector &trueAtoms,
-				const atom_vector &falseAtoms) const;
+				const atom_vector &falseAtoms,
+				const atom_vector &reductFalseAtoms) const;
 
 		virtual SatisfiabilityInfo check(
 				const atom_vector &newTrueAtoms,
 				const atom_vector &newFalseAtoms,
+				const atom_vector &newReductFalseAtoms,
 				SatisfiabilityInfo establishedInfo) const;
 
 		virtual SatisfiabilityInfo check(

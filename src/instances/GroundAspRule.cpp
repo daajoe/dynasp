@@ -61,9 +61,10 @@ namespace dynasp
 
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &trueAtoms,
-			const atom_vector &falseAtoms) const
+			const atom_vector &falseAtoms,
+			const atom_vector &reductFalseAtoms) const
 	{
-		return this->check(trueAtoms, falseAtoms, 
+		return this->check(trueAtoms, falseAtoms, reductFalseAtoms,
 				SatisfiabilityInfo
 				{
 					false,
@@ -77,14 +78,29 @@ namespace dynasp
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &newTrueAtoms,
 			const atom_vector &newFalseAtoms,
+			const atom_vector &newReductFalseAtoms,
 			GroundAspRule::SatisfiabilityInfo ei) const
 	{
-		//FIXME: fix next line for certificates
-		if(choiceRule_) return SatisfiabilityInfo { true, false, 0, 0, 0 };
-
 		unordered_map<atom_t, size_t>::const_iterator it;
+
+		for(const atom_t atom : newReductFalseAtoms)
+			if(!choiceRule_ && head_.find(atom) != head_.end())
+				++ei.seenHeadAtoms;
+			else if(choiceRule_ && head_.find(atom) != head_.end())
+				ei.seenHeadAtoms = head_.size(); // h false
+			else if((it = positiveBody_.find(atom)) != positiveBody_.end()
+					&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
+			else if((it = negativeBody_.find(atom)) != negativeBody_.end()
+					&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
+			
 		for(const atom_t atom : newTrueAtoms)
-			if(head_.find(atom) != head_.end())
+			if(!choiceRule_ && head_.find(atom) != head_.end())
+				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
+			else if(choiceRule_ && ei.seenHeadAtoms != head_.size()
+					&& head_.find(atom) != head_.end()
+					&& ++ei.seenHeadAtoms == head_.size())
 				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
 			else if((it = negativeBody_.find(atom)) != negativeBody_.end()
 					&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
@@ -93,14 +109,18 @@ namespace dynasp
 				ei.minBodyWeight += it->second;
 
 		for(const atom_t atom : newFalseAtoms)
-			if((it = positiveBody_.find(atom)) != positiveBody_.end()
-			   && (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
-				return  SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
+			if(!choiceRule_ && head_.find(atom) != head_.end())
+				++ei.seenHeadAtoms;
+			else if(choiceRule_ && ei.seenHeadAtoms != head_.size()
+					&& head_.find(atom) != head_.end()
+					&& ++ei.seenHeadAtoms == head_.size())
+				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
+			else if((it = positiveBody_.find(atom)) != positiveBody_.end()
+					&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
 			else if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.minBodyWeight += it->second;
-			else if(head_.find(atom) != head_.end())
-				++ei.seenHeadAtoms;
-
+		
 		if(ei.seenHeadAtoms != head_.size()) return ei; // unknown
 		if(ei.minBodyWeight < minimumBodyWeight_) return ei; // unknown
 		return SatisfiabilityInfo { false, true, 0, 0, 0 }; // h false, b true
@@ -121,19 +141,28 @@ namespace dynasp
 			ei1.seenHeadAtoms + ei2.seenHeadAtoms
 		};
 
+		bool headFalse = choiceRule_ && (ei1.seenHeadAtoms == head_.size() 
+					  				 ||  ei2.seenHeadAtoms == head_.size());
+
+		if(headFalse) ei.seenHeadAtoms = head_.size();
+
 		unordered_map<atom_t, size_t>::const_iterator it;
 		for(const atom_t atom : sharedTrueAtoms)
 			if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.maxBodyWeight += it->second;
 			else if((it = positiveBody_.find(atom)) != positiveBody_.end())
 				ei.minBodyWeight -= it->second;
+			else if((!choiceRule_ || !headFalse)
+					&& head_.find(atom) != head_.end())
+				--ei.seenHeadAtoms;
 
 		for(const atom_t atom : sharedFalseAtoms)
 			if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.minBodyWeight -= it->second;
 			else if((it = positiveBody_.find(atom)) != positiveBody_.end())
 				ei.maxBodyWeight += it->second;
-			else if(head_.find(atom) != head_.end())
+			else if((!choiceRule_ || !headFalse)
+					&& head_.find(atom) != head_.end())
 				--ei.seenHeadAtoms;
 
 		if(ei.maxBodyWeight < minimumBodyWeight_)

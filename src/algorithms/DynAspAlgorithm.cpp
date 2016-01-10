@@ -213,8 +213,8 @@ namespace dynasp
 						 ++joinIter)
 					if(nullptr != (tmp = (*joinIter)->join(
 									info,
-									*joinVertices,
-									*joinVertices,
+									*joinVertices, //FIXME
+									*joinVertices, //FIXME
 									*tuple)))
 						curr.insert(tmp);
 

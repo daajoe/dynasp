@@ -3,7 +3,7 @@
 #endif
 #include "../util/debug.hpp"
 
-#include "ClassicDynAspTuple.hpp"
+#include "RuleSetDynAspTuple.hpp"
 
 #include <stack>
 
@@ -15,29 +15,58 @@ namespace dynasp
 
 	using sharp::Hash;
 
-	ClassicDynAspTuple::ClassicDynAspTuple(bool leaf)
+	size_t RuleSetDynAspTuple::DynAspCertificate::hash() const
+	{
+		Hash hash;
+
+		for(atom_t atom : this->atoms)
+			hash.addUnordered(atom);
+		hash.incorporateUnordered();
+		hash.add(this->atoms.size());
+
+		for(rule_t rule : this->rules)
+			hash.addUnordered(rule)
+		hash.incorporateUnordered();
+		hash.add(this->rules.size());
+
+		hash.add(this->same ? 1 : 0);
+
+		return hash.get();
+	}
+
+	bool RuleSetDynAspTuple::DynAspCertificate::operator==(
+			const DynAspCertificate &other) const
+	{
+		return this->atoms == other.atoms
+			&& this->rules == other.rules
+			&& this->same == other.same;
+	}
+
+	RuleSetDynAspTuple::RuleSetDynAspTuple(bool leaf)
 		: weight_(0), solutions_(1)
 	{
 		if(leaf) certificates_.insert({ { }, { }, true });
 	}
 
-	ClassicDynAspTuple::~ClassicDynAspTuple() { }
+	RuleSetDynAspTuple::~RuleSetDynAspTuple() { }
 
-	bool ClassicDynAspTuple::merge(const IDynAspTuple &tuple)
+	bool RuleSetDynAspTuple::merge(const IDynAspTuple &tuple)
 	{
-		const ClassicDynAspTuple &mergee = 
-			static_cast<const ClassicDynAspTuple &>(tuple);
+		const RuleSetDynAspTuple &mergee = 
+			static_cast<const RuleSetDynAspTuple &>(tuple);
 
 		DBG(std::endl); DBG("  merge\t");
 		DBG_COLL(atoms_); DBG("=");  DBG_COLL(mergee.atoms_);
 		DBG("\t");
-		DBG_RULMAP(rules_); DBG("="); DBG_RULMAP(mergee.rules_);
+		DBG_COLL(rules_); DBG("="); DBG_COLL(mergee.rules_);
 		DBG("\t");
 		DBG_CERT(certificates_); DBG("=");
 		DBG_CERT(mergee.certificates_);
 
 		if(atoms_ != mergee.atoms_) return false;
 		if(rules_ != mergee.rules_) return false;
+
+		//TODO: if certificates are in subset relation, we can sometimes merge
 		if(certificates_ != mergee.certificates_) return false;
 
 		if(weight_ > mergee.weight_)
@@ -53,22 +82,22 @@ namespace dynasp
 		return true;
 	}
 
-	bool ClassicDynAspTuple::isSolution() const
+	bool RuleSetDynAspTuple::isSolution() const
 	{
 		return certificates_.size() == 1 && certificates_.begin()->same;
 	}
 
-	size_t ClassicDynAspTuple::solutionCount() const
+	size_t RuleSetDynAspTuple::solutionCount() const
 	{
 		return solutions_;
 	}
 
-	size_t ClassicDynAspTuple::solutionWeight() const
+	size_t RuleSetDynAspTuple::solutionWeight() const
 	{
 		return weight_;
 	}
 
-	size_t ClassicDynAspTuple::joinHash(const atom_vector &atoms) const
+	size_t RuleSetDynAspTuple::joinHash(const atom_vector &atoms) const
 	{
 		Hash h;
 		size_t count = 0;
@@ -83,7 +112,7 @@ namespace dynasp
 		return h.get();
 	}
 
-	size_t ClassicDynAspTuple::mergeHash() const
+	size_t RuleSetDynAspTuple::mergeHash() const
 	{
 		//TODO: update for certificates (?) depending on merge condition
 		Hash h;
@@ -93,22 +122,15 @@ namespace dynasp
 		h.incorporateUnordered();
 		h.add(atoms_.size());
 
-		for(const auto entry : rules_)
-		{
-			Hash ruleHash;
-			ruleHash.add(entry.first);
-			ruleHash.add(entry.second.minBodyWeight);
-			ruleHash.add(entry.second.maxBodyWeight);
-			ruleHash.add(entry.second.seenHeadAtoms);
-			h.addUnordered(ruleHash.get());
-		}
+		for(rule_t rule : rules_)
+			h.addUnordered(rule);
 		h.incorporateUnordered();
 		h.add(rules_.size());
 
 		return h.get();
 	}
 
-	size_t ClassicDynAspTuple::hash() const
+	size_t RuleSetDynAspTuple::hash() const
 	{
 		//TODO: update for certificates, if not already in mergeHash (see above)
 		Hash h;
@@ -120,7 +142,7 @@ namespace dynasp
 		return h.get();
 	}
 
-	void ClassicDynAspTuple::introduce(
+	void RuleSetDynAspTuple::introduce(
 			const TreeNodeInfo &info,
 			sharp::ITupleSet &outputTuples) const
 	{
@@ -153,9 +175,9 @@ namespace dynasp
 
 			DBG("t"); DBG_COLL(trueAtoms); DBG(" f"); DBG_COLL(falseAtoms);
 			
-			ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
+			RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
 
-			bool validTuple = checkExistingRules(
+			bool validTuple = checkRules(
 					info.instance,
 					newTrueAtoms,
 					newFalseAtoms,
@@ -163,7 +185,7 @@ namespace dynasp
 					rules_,
 					newTuple->rules_);
 
-			validTuple &= checkNewRules(
+			validTuple &= checkRules(
 					info.instance,
 					trueAtoms,
 					falseAtoms,
@@ -171,7 +193,7 @@ namespace dynasp
 					info.introducedRules,
 					newTuple->rules_);
 
-			DBG(" r"); DBG_RULMAP(newTuple->rules_);
+			DBG(" r"); DBG_COLL(newTuple->rules_);
 			DBG("\t"); DBG(validTuple ? "yes" : "no");
 			
 			if(!validTuple) delete newTuple;
@@ -224,7 +246,7 @@ namespace dynasp
 						DynAspCertificate newCert;
 
 						// check rules						
-						bool validCert = checkExistingRules(
+						bool validCert = checkRules(
 								info.instance,
 								certNewTrueAtoms,
 								newFalseAtoms,
@@ -232,7 +254,7 @@ namespace dynasp
 								cert.rules,
 								newCert.rules);
 
-						validCert &= checkNewRules(
+						validCert &= checkRules(
 								info.instance,
 								certTrueAtoms,
 								falseAtoms,
@@ -285,14 +307,16 @@ namespace dynasp
 		}
 	}
 
-	IDynAspTuple *ClassicDynAspTuple::project(const TreeNodeInfo &info) const
+	IDynAspTuple *RuleSetDynAspTuple::project(const TreeNodeInfo &info) const
 	{
-		//TODO: verify if this check is needed, given our rule->check() impl
-		//for(rule_t rule : info.forgottenRules)
-		//	if(rules_.find(rule) != rules_.end())
-		//		return nullptr;
+		size_t ruleOkCount = 0;
+		for(rule_t rule : info.rememberedRules)
+			if(rules_.find(rule) != rules_.end())
+				++ruleOkCount;
+		if(ruleOkCount < rules_.size())
+			return nullptr;
 
-		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
+		RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
 
 		// only keep remembered atoms
 		for(atom_t atom : info.rememberedAtoms)
@@ -310,12 +334,12 @@ namespace dynasp
 		// do the same for the certificates
 		for(const DynAspCertificate &cert : certificates_)
 		{
-			//TODO: verify if this check is needed, same as above
-			//bool remove = false;
-			//for(rule_t rule : info.forgottenRules)
-			//	if((remove = (cert.rules.find(rule) != cert.rules.end())))
-			//		break;
-			//if(remove) continue;
+			ruleOkCount = 0;
+			for(rule_t rule : info.rememberedRules)
+				if(cert.rules.find(rule) != cert.rules.end())
+					++ruleOkCount;
+			if(ruleOkCount < cert.rules.size())
+				continue;
 			
 			DynAspCertificate newCert;
 
@@ -338,26 +362,26 @@ namespace dynasp
 		return newTuple;
 	}
 
-	IDynAspTuple *ClassicDynAspTuple::join(
+	IDynAspTuple *RuleSetDynAspTuple::join(
 			const TreeNodeInfo &info,
 			const atom_vector &joinAtoms,
 			const rule_vector &joinRules,
 			const IDynAspTuple &tuple) const
 	{
-		const ClassicDynAspTuple &other =
-			static_cast<const ClassicDynAspTuple &>(tuple);
+		const RuleSetDynAspTuple &other =
+			static_cast<const RuleSetDynAspTuple &>(tuple);
 
 		DBG(std::endl); DBG("  join ");
 		DBG_COLL(joinAtoms); DBG("\t");
 		DBG_COLL(atoms_); DBG("x"); DBG_COLL(other.atoms_);
 		DBG("\t");
-		DBG_RULMAP(rules_); DBG("x"); DBG_RULMAP(other.rules_);
+		DBG_COLL(rules_); DBG("x"); DBG_COLL(other.rules_);
 		DBG("\t");
 		DBG_CERT(certificates_); DBG("x");
 		DBG_CERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
-		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
+		RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
 
 		// check that atom assignment matches on the join atoms
 		for(atom_t atom : joinAtoms)
@@ -463,13 +487,13 @@ namespace dynasp
 		return newTuple;
 	}
 
-	bool ClassicDynAspTuple::operator==(const ITuple &other) const
+	bool RuleSetDynAspTuple::operator==(const ITuple &other) const
 	{
 		if(typeid(other) != typeid(*this))
 			return false;
 
-		const ClassicDynAspTuple &tmpother =
-			static_cast<const ClassicDynAspTuple &>(other);
+		const RuleSetDynAspTuple &tmpother =
+			static_cast<const RuleSetDynAspTuple &>(other);
 
 		return weight_ == tmpother.weight_
 			&& solutions_ == tmpother.solutions_
@@ -481,42 +505,15 @@ namespace dynasp
 	/***********************************\
 	|* PRIVATE MEMBERS                 *|
 	\***********************************/
-
-	bool ClassicDynAspTuple::checkExistingRules(
-			const IGroundAspInstance &instance,
-			const atom_vector &newTrueAtoms,
-			const atom_vector &newFalseAtoms,
-			const atom_vector &newReductFalseAtoms,
-			const rule_map &existingRules,
-			rule_map &outputRules)
-	{
-		for(const auto entry : existingRules)
-		{
-			IGroundAspRule::SatisfiabilityInfo si =
-				instance.rule(entry.first).check(
-						newTrueAtoms,
-						newFalseAtoms,
-						newReductFalseAtoms,
-						entry.second);
-
-			if(si.unsatisfied) return false;
-			if(si.satisfied) continue;
-
-			outputRules[entry.first] = si;
-		}
-
-		return true;
-	}
-
-	bool ClassicDynAspTuple::checkNewRules(
+	bool RuleSetDynAspTuple::checkRules(
 			const IGroundAspInstance &instance,
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,
 			const atom_vector &reductFalseAtoms,
-			const rule_vector &newRules,
+			const rule_vector &rules,
 			rule_map &outputRules)
 	{
-		for(const auto rule : newRules)
+		for(rule_t rule : rules)
 		{
 			IGroundAspRule::SatisfiabilityInfo si =
 				instance.rule(rule).check(
@@ -527,19 +524,19 @@ namespace dynasp
 			if(si.unsatisfied) return false;
 			if(si.satisfied) continue;
 
-			outputRules[rule] = si;
+			outputRules.insert(rule);
 		}
 
 		return true;
 	}
 
-	bool ClassicDynAspTuple::checkJoinRules(
+	bool RuleSetDynAspTuple::checkJoinRules(
 			const IGroundAspInstance &instance,
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,
 			const rule_vector &rules,
-			const rule_map &leftRules,
-			const rule_map &rightRules,
+			const rule_set &leftRules,
+			const rule_set &rightRules,
 			rule_map &outputRules)
 	{
 		rule_set mergedRules(rules.size());
@@ -561,21 +558,21 @@ namespace dynasp
 				if(si.unsatisfied) return false;
 				if(si.satisfied) continue;
 
-				outputRules[leftIter->first] = si;
+				outputRules.insert(leftIter->first);
 			}
 			mergedRules.insert(rule);
 		}
 
-		for(const auto &entry : leftRules)
+		for(rule_t rule : leftRules)
 		{
-			if(mergedRules.find(entry.first) == mergedRules.end())
-				outputRules[entry.first] = entry.second;
+			if(mergedRules.find(rule) == mergedRules.end())
+				outputRules.insert(rule);
 		}
 		
-		for(const auto &entry : rightRules)
+		for(rule_t rule : rightRules)
 		{
-			if(mergedRules.find(entry.first) == mergedRules.end())
-				outputRules[entry.first] = entry.second;
+			if(mergedRules.find(rule) == mergedRules.end())
+				outputRules.insert(rule);
 		}
 
 		return true;

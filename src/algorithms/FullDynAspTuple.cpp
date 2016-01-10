@@ -3,7 +3,7 @@
 #endif
 #include "../util/debug.hpp"
 
-#include "ClassicDynAspTuple.hpp"
+#include "FullDynAspTuple.hpp"
 
 #include <stack>
 
@@ -15,18 +15,52 @@ namespace dynasp
 
 	using sharp::Hash;
 
-	ClassicDynAspTuple::ClassicDynAspTuple(bool leaf)
+	size_t FullDynAspTuple::DynAspCertificate::hash() const
+	{
+		Hash hash;
+
+		for(atom_t atom : this->atoms)
+			hash.addUnordered(atom);
+		hash.incorporateUnordered();
+		hash.add(this->atoms.size());
+
+		for(const auto &pair : this->rules)
+		{
+			Hash ruleHash;
+			ruleHash.add(pair.first);
+			ruleHash.add(pair.second.minBodyWeight);
+			ruleHash.add(pair.second.maxBodyWeight);
+			ruleHash.add(pair.second.seenHeadAtoms);
+			hash.addUnordered(ruleHash.get());
+		}
+		hash.incorporateUnordered();
+		hash.add(this->rules.size());
+
+		hash.add(this->same ? 1 : 0);
+
+		return hash.get();
+	}
+
+	bool FullDynAspTuple::DynAspCertificate::operator==(
+			const DynAspCertificate &other) const
+	{
+		return this->atoms == other.atoms
+			&& this->rules == other.rules
+			&& this->same == other.same;
+	}
+
+	FullDynAspTuple::FullDynAspTuple(bool leaf)
 		: weight_(0), solutions_(1)
 	{
 		if(leaf) certificates_.insert({ { }, { }, true });
 	}
 
-	ClassicDynAspTuple::~ClassicDynAspTuple() { }
+	FullDynAspTuple::~FullDynAspTuple() { }
 
-	bool ClassicDynAspTuple::merge(const IDynAspTuple &tuple)
+	bool FullDynAspTuple::merge(const IDynAspTuple &tuple)
 	{
-		const ClassicDynAspTuple &mergee = 
-			static_cast<const ClassicDynAspTuple &>(tuple);
+		const FullDynAspTuple &mergee = 
+			static_cast<const FullDynAspTuple &>(tuple);
 
 		DBG(std::endl); DBG("  merge\t");
 		DBG_COLL(atoms_); DBG("=");  DBG_COLL(mergee.atoms_);
@@ -38,6 +72,8 @@ namespace dynasp
 
 		if(atoms_ != mergee.atoms_) return false;
 		if(rules_ != mergee.rules_) return false;
+
+		//TODO: if certificates are in subset relation, we can sometimes merge
 		if(certificates_ != mergee.certificates_) return false;
 
 		if(weight_ > mergee.weight_)
@@ -53,22 +89,22 @@ namespace dynasp
 		return true;
 	}
 
-	bool ClassicDynAspTuple::isSolution() const
+	bool FullDynAspTuple::isSolution() const
 	{
 		return certificates_.size() == 1 && certificates_.begin()->same;
 	}
 
-	size_t ClassicDynAspTuple::solutionCount() const
+	size_t FullDynAspTuple::solutionCount() const
 	{
 		return solutions_;
 	}
 
-	size_t ClassicDynAspTuple::solutionWeight() const
+	size_t FullDynAspTuple::solutionWeight() const
 	{
 		return weight_;
 	}
 
-	size_t ClassicDynAspTuple::joinHash(const atom_vector &atoms) const
+	size_t FullDynAspTuple::joinHash(const atom_vector &atoms) const
 	{
 		Hash h;
 		size_t count = 0;
@@ -83,7 +119,7 @@ namespace dynasp
 		return h.get();
 	}
 
-	size_t ClassicDynAspTuple::mergeHash() const
+	size_t FullDynAspTuple::mergeHash() const
 	{
 		//TODO: update for certificates (?) depending on merge condition
 		Hash h;
@@ -108,7 +144,7 @@ namespace dynasp
 		return h.get();
 	}
 
-	size_t ClassicDynAspTuple::hash() const
+	size_t FullDynAspTuple::hash() const
 	{
 		//TODO: update for certificates, if not already in mergeHash (see above)
 		Hash h;
@@ -120,7 +156,7 @@ namespace dynasp
 		return h.get();
 	}
 
-	void ClassicDynAspTuple::introduce(
+	void FullDynAspTuple::introduce(
 			const TreeNodeInfo &info,
 			sharp::ITupleSet &outputTuples) const
 	{
@@ -153,7 +189,7 @@ namespace dynasp
 
 			DBG("t"); DBG_COLL(trueAtoms); DBG(" f"); DBG_COLL(falseAtoms);
 			
-			ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
+			FullDynAspTuple *newTuple = new FullDynAspTuple(false);
 
 			bool validTuple = checkExistingRules(
 					info.instance,
@@ -285,14 +321,14 @@ namespace dynasp
 		}
 	}
 
-	IDynAspTuple *ClassicDynAspTuple::project(const TreeNodeInfo &info) const
+	IDynAspTuple *FullDynAspTuple::project(const TreeNodeInfo &info) const
 	{
 		//TODO: verify if this check is needed, given our rule->check() impl
 		//for(rule_t rule : info.forgottenRules)
 		//	if(rules_.find(rule) != rules_.end())
 		//		return nullptr;
 
-		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
+		FullDynAspTuple *newTuple = new FullDynAspTuple(false);
 
 		// only keep remembered atoms
 		for(atom_t atom : info.rememberedAtoms)
@@ -338,14 +374,14 @@ namespace dynasp
 		return newTuple;
 	}
 
-	IDynAspTuple *ClassicDynAspTuple::join(
+	IDynAspTuple *FullDynAspTuple::join(
 			const TreeNodeInfo &info,
 			const atom_vector &joinAtoms,
 			const rule_vector &joinRules,
 			const IDynAspTuple &tuple) const
 	{
-		const ClassicDynAspTuple &other =
-			static_cast<const ClassicDynAspTuple &>(tuple);
+		const FullDynAspTuple &other =
+			static_cast<const FullDynAspTuple &>(tuple);
 
 		DBG(std::endl); DBG("  join ");
 		DBG_COLL(joinAtoms); DBG("\t");
@@ -357,7 +393,7 @@ namespace dynasp
 		DBG_CERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
-		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
+		FullDynAspTuple *newTuple = new FullDynAspTuple(false);
 
 		// check that atom assignment matches on the join atoms
 		for(atom_t atom : joinAtoms)
@@ -463,13 +499,13 @@ namespace dynasp
 		return newTuple;
 	}
 
-	bool ClassicDynAspTuple::operator==(const ITuple &other) const
+	bool FullDynAspTuple::operator==(const ITuple &other) const
 	{
 		if(typeid(other) != typeid(*this))
 			return false;
 
-		const ClassicDynAspTuple &tmpother =
-			static_cast<const ClassicDynAspTuple &>(other);
+		const FullDynAspTuple &tmpother =
+			static_cast<const FullDynAspTuple &>(other);
 
 		return weight_ == tmpother.weight_
 			&& solutions_ == tmpother.solutions_
@@ -482,7 +518,7 @@ namespace dynasp
 	|* PRIVATE MEMBERS                 *|
 	\***********************************/
 
-	bool ClassicDynAspTuple::checkExistingRules(
+	bool FullDynAspTuple::checkExistingRules(
 			const IGroundAspInstance &instance,
 			const atom_vector &newTrueAtoms,
 			const atom_vector &newFalseAtoms,
@@ -508,7 +544,7 @@ namespace dynasp
 		return true;
 	}
 
-	bool ClassicDynAspTuple::checkNewRules(
+	bool FullDynAspTuple::checkNewRules(
 			const IGroundAspInstance &instance,
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,
@@ -533,7 +569,7 @@ namespace dynasp
 		return true;
 	}
 
-	bool ClassicDynAspTuple::checkJoinRules(
+	bool FullDynAspTuple::checkJoinRules(
 			const IGroundAspInstance &instance,
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,

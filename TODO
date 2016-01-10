@@ -40,3 +40,5 @@
 - in Tuple implementation: split long code blocks into methods
 	* private method for: certificate eval, rule check (done!), certificate join, etc...
 	* have short, readable code in each method
+
+- in HypergraphConverters, implement the general case method, not just the one for the conrete class

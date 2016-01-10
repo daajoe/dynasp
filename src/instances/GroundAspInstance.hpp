@@ -10,6 +10,9 @@
 
 namespace dynasp
 {
+	class PrimalHypergraphConverter;
+	class IncidenceHypergraphConverter;
+
 	class DYNASP_LOCAL GroundAspInstance : public IGroundAspInstance
 	{
 	public:
@@ -42,7 +45,10 @@ namespace dynasp
 		std::unordered_map<atom_t, std::size_t> negativeAtomWeights_;
 		std::vector<IGroundAspRule *> rules_;
 
-		virtual htd::IMutableHypergraph *createEmptyHypergraph() const;
+	public:
+		friend class PrimalHypergraphConverter;
+		friend class IncidenceHypergraphConverter;
+
 	}; // class GroundAspInstance
 
 } // namespace dynasp

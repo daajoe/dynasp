@@ -16,9 +16,6 @@ namespace dynasp
 		virtual IGroundAspInstance *parse(std::istream *in);
 		virtual IGroundAspInstance *parse(std::istream *in, std::ostream *out);
 
-	private:
-		virtual IGroundAspInstance *createEmptyInstance();
-
 	}; // class LParseParser
 
 } // namespace dynasp

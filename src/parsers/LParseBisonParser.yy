@@ -128,7 +128,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>3 - $<number>4,
 						$<vector>6->size());
 
-				$<rule>$ = Factory::createRule();
+				$<rule>$ = create::rule();
 
 				$<rule>$->addHeadAtom($<number>2);
 				for(atom_t atom : *$<vector>6)
@@ -147,7 +147,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>3 - $<number>4,
 						$<vector>7->size());
 
-				$<rule>$ = Factory::createRule();
+				$<rule>$ = create::rule();
 
 				$<rule>$->addHeadAtom($<number>2);
 				for(atom_t atom : *$<vector>7)
@@ -168,7 +168,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>4 - $<number>5,
 						$<vector>7->size());
 
-				$<rule>$ = Factory::createRule();
+				$<rule>$ = create::rule();
 
 				$<rule>$->makeChoiceHead();
 				for(atom_t atom : *$<vector>3)
@@ -192,7 +192,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>4 - $<number>5,
 						$<vector>7->size());
 
-				$<rule>$ = Factory::createRule();
+				$<rule>$ = create::rule();
 
 				int pos = 0;
 				$<rule>$->addHeadAtom($<number>2);
@@ -243,7 +243,7 @@ rule	: 	BASIC_TYPE head LITLISTCNT LITLISTNCNT nlist list
 						$<number>4 - $<number>5,
 						$<vector>7->size());
 
-				$<rule>$ = Factory::createRule();
+				$<rule>$ = create::rule();
 			
 				for(atom_t atom : *$<vector>3)
 					$<rule>$->addHeadAtom(atom);

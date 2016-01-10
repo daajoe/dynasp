@@ -98,14 +98,14 @@ graph = buildGridFromTree(tree, gridsize)
 #
 # UNCOMMENT THIS TO OUTPUT A TSEITIN PROGRAM INSTANCE
 #
-print "vertex(v1)."
-print "capacity(v1, 1)."
-for i in range(1, tree.gridCount(gridsize)):
-	print "vertex(v%d)." % (i + 1)
-	print "capacity(v%d, 0)." % (i + 1)
-
-for (i, j) in graph:
-	print "edge(v%d, v%d)." % (i + 1, j + 1)
+#print "vertex(v1)."
+#print "capacity(v1, 1)."
+#for i in range(1, tree.gridCount(gridsize)):
+#	print "vertex(v%d)." % (i + 1)
+#	print "capacity(v%d, 0)." % (i + 1)
+#
+#for (i, j) in graph:
+#	print "edge(v%d, v%d)." % (i + 1, j + 1)
 
 #
 # UNCOMMENT THIS TO OUTPUT A LARGE TWO-COLORABILITY RULE
@@ -119,12 +119,18 @@ for (i, j) in graph:
 #	print sep + "edge(V%d, V%d)" % (i + 1, j + 1),
 #	sep = ", "
 #print "."
-#
+
 #
 # UNCOMMENT THIS TO OUTPUT AN OLD-STYLE TWO-COLORABILITY ASP PROGRAM
 #
-#for i in range(1, tree.gridCount(gridsize)):
-#	print "red(v%d) v blue(v%d)." % (i + 1, i + 1)
+#for i in range(0, tree.gridCount(gridsize)):
+#	print "red(v%d) | blue(v%d)." % (i + 1, i + 1)
 #
 #for (i, j) in graph:
 #	print ":- red(v%d), red(v%d)." % (i + 1, j + 1)
+
+#
+# UNCOMMENT THIS TO OUTPUT JUST THE GRAPH IN ASP NOTATION
+#
+for (i, j) in graph:
+	print "edge(v%d, v%d)." % (i + 1, j + 1)

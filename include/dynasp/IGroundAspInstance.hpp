@@ -4,11 +4,12 @@
 #include <dynasp/global>
 
 #include <dynasp/Atom.hpp>
+#include <dynasp/Rule.hpp>
 #include <dynasp/IGroundAspRule.hpp>
 
 #include <sharp/main>
 
-#include <htd/main>
+#include <htd/main.hpp>
 
 #include <string>
 #include <utility>
@@ -26,7 +27,7 @@ namespace dynasp
 		virtual ~IGroundAspInstance() = 0;
 
 		virtual void addAtomName(atom_t atom, const std::string &name) = 0;
-		virtual void addAtom(htd::vertex_t vertex) = 0;
+		virtual void addAtom(atom_t atom) = 0;
 		virtual void addRule(IGroundAspRule *rule) = 0;
 		virtual void addWeight(
 				atom_t atom,
@@ -36,7 +37,7 @@ namespace dynasp
 		virtual bool isRule(htd::vertex_t vertex) const = 0;
 		virtual bool isAtom(htd::vertex_t vertex) const = 0;
 
-		virtual const IGroundAspRule &rule(htd::vertex_t rule) const = 0;
+		virtual const IGroundAspRule &rule(rule_t rule) const = 0;
 
 		virtual std::size_t weight(
 				const atom_vector &trueAtoms,

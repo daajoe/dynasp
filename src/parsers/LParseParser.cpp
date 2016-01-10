@@ -1,6 +1,7 @@
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
+#include "../util/debug.hpp"
 
 #include "LParseParser.hpp"
 
@@ -8,6 +9,8 @@
 #include "LParseLexer.hpp"
 
 #include "../instances/GroundAspInstance.hpp"
+
+#include <dynasp/create.hpp>
 
 #include <iostream>
 
@@ -27,7 +30,7 @@ namespace dynasp
 
 	IGroundAspInstance *LParseParser::parse(istream *in, ostream *out)
 	{
-		IGroundAspInstance *result = this->createEmptyInstance();
+		IGroundAspInstance *result = create::instance();
 
 		//TODO: proper error handling
 		//if(!result) return nullptr;
@@ -49,12 +52,6 @@ namespace dynasp
 		}
 
 		return result;
-	}
-
-	IGroundAspInstance *LParseParser::createEmptyInstance()
-	{
-		//TODO: add dependency injection light
-		return new GroundAspInstance();
 	}
 
 } // namespace dynasp

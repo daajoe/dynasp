@@ -5,7 +5,7 @@
 
 #include <sharp/main>
 
-#include <htd/main>
+#include <htd/main.hpp>
 
 namespace dynasp
 {

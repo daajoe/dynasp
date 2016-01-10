@@ -1,19 +1,18 @@
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
+#include "../util/debug.hpp" 
 
 #include <dynasp/DynAspAlgorithm.hpp>
 
 #include "../instances/GroundAspInstance.hpp"
 
 #include <dynasp/TreeNodeInfo.hpp>
-#include <dynasp/Factory.hpp>
+#include <dynasp/create.hpp>
 
 #include <unordered_set>
 #include <algorithm>
 #include <climits>
-
-#include "../debug.cpp" 
 
 namespace dynasp
 {
@@ -21,6 +20,7 @@ namespace dynasp
 	using htd::vertex_container;
 	using htd::ILabelingFunction;
 	using htd::ITreeDecomposition;
+	using htd::Collection;
 
 	using sharp::IInstance;
 	using sharp::INodeTupleSetMap;
@@ -60,64 +60,62 @@ namespace dynasp
 			vertex_container(),
 			vertex_container(),
 			vertex_container(),
-			vertex_container(),
-			vertex_container(),
 			vertex_container()
 		};
 
-		decomposition.rememberedVertices(node, info.rememberedAtoms);
-		decomposition.introducedVertices(node, info.introducedAtoms);
-		decomposition.forgottenVertices(node, info.forgottenAtoms);
+		const Collection<vertex_t> &remembered =
+			decomposition.rememberedVertices(node);
+		const Collection<vertex_t> &introduced =
+			decomposition.introducedVertices(node);
 
-		//FIXME: remove bitvectors to calculate subsets, then this not needed
-		if(sizeof(size_t) * CHAR_BIT
-				< (info.rememberedAtoms.size() + info.introducedAtoms.size()))
+		for(auto i = remembered.begin(); i!= remembered.end(); ++i)
+		{
+			vertex_t vertex = *i;
+			
+			//FIXME: do this via labelling functions
+			if(info.instance.isRule(vertex)) info.rememberedRules.push_back(vertex);
+			else info.rememberedAtoms.push_back(vertex);
+		}
+
+		for(auto i = introduced.begin(); i != introduced.end(); ++i)
+		{
+			vertex_t vertex = *i;
+			
+			//FIXME: do this via labelling functions
+			if(info.instance.isRule(vertex)) info.introducedRules.push_back(vertex);
+			else info.introducedAtoms.push_back(vertex);
+		}
+
+		//FIXME: remove bitvectors to calculate subsets, then this is not needed
+		if(sizeof(size_t) * CHAR_BIT < (remembered.size() + introduced.size()))
 			throw std::runtime_error("Treewidth too high.");
 
-		//FIXME: do this via labeling functions
-		while(info.rememberedAtoms.size()
-				&& info.instance.isRule(info.rememberedAtoms.back()))
-		{
-			info.rememberedRules.push_back(info.rememberedAtoms.back());
-			info.rememberedAtoms.pop_back();
-		}
+		DBG(node); DBG(": ra"); DBG_COLL(info.rememberedAtoms); DBG(" rr");
+		DBG_COLL(info.rememberedRules); DBG(" ia");
+		DBG_COLL(info.introducedAtoms); DBG(" ir");
+		DBG_COLL(info.introducedRules); DBG(" children: ");
 
-		//FIXME: do this via labeling functions
-		while(info.introducedAtoms.size()
-				&& info.instance.isRule(info.introducedAtoms.back()))
-		{
-			info.introducedRules.push_back(info.introducedAtoms.back());
-			info.introducedAtoms.pop_back();
-		}
-
-		//FIXME: do this via labeling functions
-		while(info.forgottenAtoms.size()
-				&& info.instance.isRule(info.forgottenAtoms.back()))
-		{
-			info.forgottenRules.push_back(info.forgottenAtoms.back());
-			info.forgottenAtoms.pop_back();
-		}
-
-		//FIXME: remove debug code below
-		std::cout << node << ": ra";
-		printColl(info.rememberedAtoms); std::cout << " rr";
-		printColl(info.rememberedRules); std::cout << " ia";
-		printColl(info.introducedAtoms); std::cout << " ir";
-		printColl(info.introducedRules); std::cout << " fa";
-		printColl(info.forgottenAtoms); std::cout << " fr";
-		printColl(info.forgottenRules); std::cout << " children: ";
-		//FIXME: end debug code
-
-		size_t childCount = decomposition.childrenCount(node);
+		size_t childCount = decomposition.childCount(node);
 		
-		vertex_container nextChildBag;
+		// contains vertices already joined together
 		unordered_set<vertex_t> joinBase;
+		vertex_t child;
 
 		if(childCount != 0)
-			decomposition.bagContent(
-					decomposition.child(node, 0),
-					nextChildBag);
-		joinBase.insert(nextChildBag.begin(), nextChildBag.end());
+		{
+			child = decomposition.child(node, 0);
+
+			const Collection<vertex_t> &childRemembered =
+				decomposition.rememberedVertices(child);
+			const Collection<vertex_t> &childIntroduced = 
+				decomposition.introducedVertices(child);
+
+			for(auto i = childRemembered.begin(); i != childRemembered.end(); ++i)
+				joinBase.insert(*i);
+
+			for(auto i = childIntroduced.begin(); i != childIntroduced.end(); ++i)
+				joinBase.insert(*i);
+		}
 
 		vertex_container v1, v2, *joinVertices = &v1, *nextJoinVertices = &v2;
 		unordered_set<IDynAspTuple *, IDynAspTuple::join_hash>
@@ -127,33 +125,36 @@ namespace dynasp
 		bool firstChild = true;
 
 		// for each child, project and join tuples
-		if(childCount == 0) prev.insert(Factory::createTuple());
+		if(childCount == 0) prev.insert(create::tuple(true));
 		else for(size_t childIndex = 0; childIndex < childCount; ++childIndex)
 		{
-			vertex_t child = decomposition.child(node, childIndex);
+			child = decomposition.child(node, childIndex);
+			vertex_t nextChild;
 
 			if(childIndex + 1 < childCount)
 			{
-				nextChildBag.clear();
-				decomposition.bagContent(
-						decomposition.child(node, childIndex + 1),
-						nextChildBag);
+				nextChild = decomposition.child(node, childIndex + 1);
+				const Collection<vertex_t> &nextRemembered =
+					decomposition.rememberedVertices(nextChild);
+				const Collection<vertex_t> &nextIntroduced = 
+					decomposition.introducedVertices(nextChild);
 
-				//FIXME: Tree Decomposition should supply this
+				//FIXME: tree decomposition should supply this
 				nextJoinVertices->clear();
-				for(vertex_t vertex : nextChildBag)
-					if(joinBase.find(vertex) != joinBase.end())
-						nextJoinVertices->push_back(vertex);
-					else
-						joinBase.insert(vertex);
+
+				for(auto i = nextIntroduced.begin(); i != nextIntroduced.end(); ++i)
+					if(!joinBase.insert(*i).second)
+						nextJoinVertices->push_back(*i);
+
+				for(auto i = nextRemembered.begin(); i != nextRemembered.end(); ++i)
+					if(!joinBase.insert(*i).second)
+						nextJoinVertices->push_back(*i);
 			}
 
 			const ITupleSet &childTuples = tuples[child];
 
-			//FIXME: remove debug code below
-			std::cout << child; printColl(*joinVertices);
-			std::cout << "(" << childTuples.size() << ",";
-			//FIXME: end debug code
+			DBG(child); DBG_COLL(*joinVertices);
+			DBG("("); DBG(childTuples.size()); DBG(",");
 
 			unordered_set<IDynAspTuple *, IDynAspTuple::merge_hash>
 				merged(childTuples.size());
@@ -181,10 +182,7 @@ namespace dynasp
 				if(!isIn) merged.insert(reducedTuple);
 			}
 
-			//FIXME: debug code
-			std::cout << merged.size() << ",";
-			//FIXME: end debug code
-			
+			DBG(merged.size()); DBG(",");
 			
 			// join the tuples to the ones of the previous child
 			if(firstChild)
@@ -197,9 +195,7 @@ namespace dynasp
 				prev.swap(curr);
 				swap(joinVertices, nextJoinVertices);
 	
-				//FIXME: remove debug code
-				std::cout << prev.size() << ") ";
-				//FIXME: end debug code
+				DBG(prev.size()); DBG(") ");
 				
 				firstChild = false;
 				continue;
@@ -218,6 +214,7 @@ namespace dynasp
 					if(nullptr != (tmp = (*joinIter)->join(
 									info,
 									*joinVertices,
+									*joinVertices,
 									*tuple)))
 						curr.insert(tmp);
 
@@ -233,18 +230,14 @@ namespace dynasp
 			prev.swap(curr);
 			swap(joinVertices, nextJoinVertices);
 
-			//FIXME: remove debug code
-			std::cout << prev.size() << ") ";
-			//FIXME: end debug code
+			DBG(prev.size()); DBG(") ");
 
 			// if after a join we have no tuples left, bail out
 			if(prev.size() == 0)
 				return;
 		}
 
-		//FIXME: remove debug code
-		std::cout << std::endl;
-		//FIXME: end debug code
+		DBG(std::endl);
 
 		// for each remaining tuple, 
 		for(IDynAspTuple *tuple : prev)
@@ -253,10 +246,8 @@ namespace dynasp
 			delete tuple;
 		}
 
-		//FIXME: remove debug code
-		std::cout << "\ttuples: " << prev.size() << " " <<
-			outputTuples.size() << std::endl;
-		//FIXME: end debug code
+		DBG("\ttuples: "); DBG(prev.size()); DBG(" ");
+		DBG(outputTuples.size()); DBG(std::endl);
 	}
 
 } // namespace dynasp

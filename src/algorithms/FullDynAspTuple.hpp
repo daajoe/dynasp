@@ -64,11 +64,14 @@ namespace dynasp
 	class DYNASP_LOCAL ClassicDynAspTuple : public IDynAspTuple
 	{
 	public:
-		ClassicDynAspTuple(bool initial);
+		ClassicDynAspTuple(bool leaf);
 		virtual ~ClassicDynAspTuple();
 
 		virtual bool merge(const IDynAspTuple &tuple);
 
+		virtual bool isSolution() const;
+		virtual std::size_t solutionCount() const;
+		virtual std::size_t solutionWeight() const;
 		virtual std::size_t joinHash(const atom_vector &atoms) const;
 		virtual std::size_t mergeHash() const;
 		virtual std::size_t hash() const;
@@ -82,12 +85,14 @@ namespace dynasp
 		virtual IDynAspTuple *join(
 				const TreeNodeInfo &info,
 				const atom_vector &joinAtoms,
+				const rule_vector &joinRules,
 				const IDynAspTuple &tuple) const;
 
 		virtual bool operator==(const ITuple &other) const;
 
 	private:
 		typedef std::unordered_set<atom_t> atom_set;
+		typedef std::unordered_set<rule_t> rule_set;
 		typedef std::unordered_set<DynAspCertificate> certificate_set;
 		typedef std::unordered_map<rule_t, IGroundAspRule::SatisfiabilityInfo>
 			rule_map;

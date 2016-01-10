@@ -9,7 +9,7 @@
 
 #include <sharp/main>
 
-#include <htd/main>
+#include <htd/main.hpp>
 
 #include <cstddef>
 
@@ -26,6 +26,9 @@ namespace dynasp
 		
 		virtual bool merge(const IDynAspTuple &tuple) = 0;
 
+		virtual bool isSolution() const = 0;
+		virtual std::size_t solutionCount() const = 0;
+		virtual std::size_t solutionWeight() const = 0;
 		virtual std::size_t joinHash(const atom_vector &atoms) const = 0;
 		virtual std::size_t mergeHash() const = 0;
 
@@ -38,8 +41,10 @@ namespace dynasp
 		virtual IDynAspTuple *join(
 				const TreeNodeInfo &info,
 				const atom_vector &joinAtoms,
+				const rule_vector &joinRules,
 				const IDynAspTuple &tuple) const = 0;
 
+		//TODO: move this to cpp file(s)
 		struct merge_hash
 		{
 			std::size_t operator()(const IDynAspTuple * const &tuple) const
@@ -48,6 +53,7 @@ namespace dynasp
 			}
 		};
 
+		//TODO: move this to cpp file(s)
 		struct join_hash
 		{
 			join_hash(const htd::vertex_container &joinVertices)

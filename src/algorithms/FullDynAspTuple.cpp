@@ -1,12 +1,11 @@
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
+#include "../util/debug.hpp"
 
 #include "ClassicDynAspTuple.hpp"
 
 #include <stack>
-
-#include "../debug.cpp"
 
 namespace dynasp
 {
@@ -14,11 +13,12 @@ namespace dynasp
 	using std::unordered_set;
 	using std::stack;
 
-	ClassicDynAspTuple::ClassicDynAspTuple(bool initial)
+	using sharp::Hash;
+
+	ClassicDynAspTuple::ClassicDynAspTuple(bool leaf)
 		: weight_(0), solutions_(1)
 	{
-		if(initial)
-			certificates_.insert({ { }, { }, true });
+		if(leaf) certificates_.insert({ { }, { }, true });
 	}
 
 	ClassicDynAspTuple::~ClassicDynAspTuple() { }
@@ -28,15 +28,13 @@ namespace dynasp
 		const ClassicDynAspTuple &mergee = 
 			static_cast<const ClassicDynAspTuple &>(tuple);
 
-		//FIXME: debug
-		std::cout << std::endl << "  merge\t";
-		printColl(atoms_); std::cout << "=";  printColl(mergee.atoms_);
-		std::cout << "\t";
-		printRules(rules_); std::cout << "="; printRules(mergee.rules_);
-		std::cout << "\t";
-		printCert(certificates_); std::cout << "=";
-		printCert(mergee.certificates_);
-		//FIXME: end debug
+		DBG(std::endl); DBG("  merge\t");
+		DBG_COLL(atoms_); DBG("=");  DBG_COLL(mergee.atoms_);
+		DBG("\t");
+		DBG_RULMAP(rules_); DBG("="); DBG_RULMAP(mergee.rules_);
+		DBG("\t");
+		DBG_CERT(certificates_); DBG("=");
+		DBG_CERT(mergee.certificates_);
 
 		if(atoms_ != mergee.atoms_) return false;
 		if(rules_ != mergee.rules_) return false;
@@ -55,30 +53,71 @@ namespace dynasp
 		return true;
 	}
 
+	bool ClassicDynAspTuple::isSolution() const
+	{
+		return certificates_.size() == 1 && certificates_.begin()->same;
+	}
+
+	size_t ClassicDynAspTuple::solutionCount() const
+	{
+		return solutions_;
+	}
+
+	size_t ClassicDynAspTuple::solutionWeight() const
+	{
+		return weight_;
+	}
+
 	size_t ClassicDynAspTuple::joinHash(const atom_vector &atoms) const
 	{
-		//TODO: better hash function
-		size_t hash = 0;
+		Hash h;
+		size_t count = 0;
 		for(atom_t atom : atoms)
 			if(atoms_.find(atom) != atoms_.end())
-				hash += (13 ^ atom) * 57;
-		return hash;
+			{
+				h.addUnordered(atom);
+				++count;
+			}
+		h.incorporateUnordered();
+		h.add(count);
+		return h.get();
 	}
 
 	size_t ClassicDynAspTuple::mergeHash() const
 	{
-		//TODO: better hash function
-		//TODO: update for rules/certificates
-		size_t hash = 0;
+		//TODO: update for certificates (?) depending on merge condition
+		Hash h;
+
 		for(atom_t atom : atoms_)
-			hash += (13 ^ atom) * 57;
-		return hash;
+			h.addUnordered(atom);
+		h.incorporateUnordered();
+		h.add(atoms_.size());
+
+		for(const auto entry : rules_)
+		{
+			Hash ruleHash;
+			ruleHash.add(entry.first);
+			ruleHash.add(entry.second.minBodyWeight);
+			ruleHash.add(entry.second.maxBodyWeight);
+			ruleHash.add(entry.second.seenHeadAtoms);
+			h.addUnordered(ruleHash.get());
+		}
+		h.incorporateUnordered();
+		h.add(rules_.size());
+
+		return h.get();
 	}
 
 	size_t ClassicDynAspTuple::hash() const
 	{
-		//TODO: update for weight_, solutions_ (?)
-		return this->mergeHash();
+		//TODO: update for certificates, if not already in mergeHash (see above)
+		Hash h;
+
+		h.add(this->mergeHash());
+		h.add(weight_);
+		h.add(solutions_);
+
+		return h.get();
 	}
 
 	void ClassicDynAspTuple::introduce(
@@ -98,9 +137,7 @@ namespace dynasp
 		size_t numIntro = info.introducedAtoms.size();
 		for(size_t subset = 0; subset < (1u << numIntro); ++subset)
 		{
-			//FIXME: debug code
-			std::cout << "\ttuple ";
-			//FIXME: end debug code
+			DBG("\ttuple ");
 
 			for(size_t bit = 0; bit < numIntro; ++bit)
 				if((subset >> bit) & 1)
@@ -114,10 +151,7 @@ namespace dynasp
 					newFalseAtoms.push_back(info.introducedAtoms[bit]);
 				}
 
-			//FIXME: debug
-			std::cout << "t"; printColl(trueAtoms);
-			std::cout << " f"; printColl(falseAtoms);
-			//FIXME: end debug
+			DBG("t"); DBG_COLL(trueAtoms); DBG(" f"); DBG_COLL(falseAtoms);
 			
 			ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
 
@@ -137,10 +171,8 @@ namespace dynasp
 					info.introducedRules,
 					newTuple->rules_);
 
-			//FIXME: debug
-			std::cout << " r"; printRules(newTuple->rules_);
-			std::cout << "\t" << (validTuple ? "yes" : "no");
-			//FIXME: end debug
+			DBG(" r"); DBG_RULMAP(newTuple->rules_);
+			DBG("\t"); DBG(validTuple ? "yes" : "no");
 			
 			if(!validTuple) delete newTuple;
 			else
@@ -155,10 +187,8 @@ namespace dynasp
 
 				newTuple->solutions_ = solutions_;
 
-				//FIXME: debug
-				std::cout << "\t" << newTuple->weight_ << " ";
-				std::cout << newTuple->solutions_;
-				//FIXME: end debug
+				DBG("\t"); DBG(newTuple->weight_); DBG(" ");
+				DBG(newTuple->solutions_);
 				
 				// introduce atoms into certificates
 				atom_vector certTrueAtoms,
@@ -237,17 +267,13 @@ namespace dynasp
 					certTrueAtoms.clear();
 				}
 
-				//FIXME: debug
-				std::cout << std::endl << "\t\t";
-				printCert(newTuple->certificates_);
-				//FIXME: end debug
+				DBG(std::endl); DBG("\t\t");
+				DBG_CERT(newTuple->certificates_);
 
 				outputTuples.insert(newTuple);
 			}
 
-			//FIXME: debug
-			std::cout << std::endl;
-			//FIXME: end debug
+			DBG(std::endl);
 
 			// reset to state before big loop
 			//FIXME: can this be optimized (i.e. no loop again at end)?
@@ -262,9 +288,9 @@ namespace dynasp
 	IDynAspTuple *ClassicDynAspTuple::project(const TreeNodeInfo &info) const
 	{
 		//TODO: verify if this check is needed, given our rule->check() impl
-		for(rule_t rule : info.forgottenRules)
-			if(rules_.find(rule) != rules_.end())
-				return nullptr;
+		//for(rule_t rule : info.forgottenRules)
+		//	if(rules_.find(rule) != rules_.end())
+		//		return nullptr;
 
 		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
 
@@ -285,19 +311,25 @@ namespace dynasp
 		for(const DynAspCertificate &cert : certificates_)
 		{
 			//TODO: verify if this check is needed, same as above
-			bool remove = false;
-			for(rule_t rule : info.forgottenRules)
-				if((remove = (cert.rules.find(rule) != cert.rules.end())))
-					break;
-			if(remove) continue;
+			//bool remove = false;
+			//for(rule_t rule : info.forgottenRules)
+			//	if((remove = (cert.rules.find(rule) != cert.rules.end())))
+			//		break;
+			//if(remove) continue;
 			
-			// copy atoms and rules from old certificate
-			// (check above already takes care of unsat forgotten rules)
-			DynAspCertificate newCert = cert;
+			DynAspCertificate newCert;
 
 			// only keep remembered atoms
-			for(atom_t atom : info.forgottenAtoms)
-				newCert.atoms.erase(atom); 
+			for(atom_t atom : info.rememberedAtoms)
+				if(cert.atoms.find(atom) != cert.atoms.end())
+					newCert.atoms.insert(atom); 
+
+			// copy rules from old certificate
+			// (check above already takes care of unsat forgotten rules)
+			newCert.rules = cert.rules;
+
+			// copy whether cert represents the tuple
+			newCert.same = cert.same;
 
 			// add the new certificate
 			newTuple->certificates_.insert(std::move(newCert));
@@ -309,22 +341,20 @@ namespace dynasp
 	IDynAspTuple *ClassicDynAspTuple::join(
 			const TreeNodeInfo &info,
 			const atom_vector &joinAtoms,
+			const rule_vector &joinRules,
 			const IDynAspTuple &tuple) const
 	{
 		const ClassicDynAspTuple &other =
 			static_cast<const ClassicDynAspTuple &>(tuple);
 
-		//FIXME: debug
-		std::cout << std::endl << "  join ";
-		printColl(joinAtoms); std::cout << "\t";
-		printColl(atoms_); std::cout << "x";  printColl(other.atoms_);
-		std::cout << "\t";
-		printRules(rules_); std::cout << "x"; printRules(other.rules_);
-		std::cout << "\t";
-		printCert(certificates_); std::cout << "x";
-		printCert(other.certificates_);
-		//FIXME: end debug
-
+		DBG(std::endl); DBG("  join ");
+		DBG_COLL(joinAtoms); DBG("\t");
+		DBG_COLL(atoms_); DBG("x"); DBG_COLL(other.atoms_);
+		DBG("\t");
+		DBG_RULMAP(rules_); DBG("x"); DBG_RULMAP(other.rules_);
+		DBG("\t");
+		DBG_CERT(certificates_); DBG("x");
+		DBG_CERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
 		ClassicDynAspTuple *newTuple = new ClassicDynAspTuple(false);
@@ -355,7 +385,7 @@ namespace dynasp
 					info.instance,
 					trueAtoms,
 					falseAtoms,
-					info.rememberedRules,
+					joinRules,
 					rules_,
 					other.rules_,
 					newTuple->rules_))
@@ -411,7 +441,7 @@ namespace dynasp
 						info.instance,
 						certTrueAtoms,
 						certFalseAtoms,
-						info.rememberedRules,
+						joinRules,
 						cert1.rules,
 						cert2.rules,
 						newCert.rules))
@@ -512,6 +542,8 @@ namespace dynasp
 			const rule_map &rightRules,
 			rule_map &outputRules)
 	{
+		rule_set mergedRules(rules.size());
+
 		for(rule_t rule : rules)
 		{
 			auto leftIter = leftRules.find(rule);
@@ -531,6 +563,19 @@ namespace dynasp
 
 				outputRules[leftIter->first] = si;
 			}
+			mergedRules.insert(rule);
+		}
+
+		for(const auto &entry : leftRules)
+		{
+			if(mergedRules.find(entry.first) == mergedRules.end())
+				outputRules[entry.first] = entry.second;
+		}
+		
+		for(const auto &entry : rightRules)
+		{
+			if(mergedRules.find(entry.first) == mergedRules.end())
+				outputRules[entry.first] = entry.second;
 		}
 
 		return true;

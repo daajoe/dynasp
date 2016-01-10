@@ -3,7 +3,7 @@
 
 #include <dynasp/global>
 
-#include <htd/main>
+#include <htd/main.hpp>
 
 #include <vector>
 

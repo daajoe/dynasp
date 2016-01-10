@@ -1,21 +1,21 @@
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
+#include "../util/debug.hpp"
 
 #include "GroundAspInstance.hpp"
 
 #include "GroundAspRule.hpp"
 
+#include <dynasp/create.hpp>
+
 #include <utility>
 #include <stdexcept>
-
-#include "../debug.cpp"
 
 namespace dynasp
 {
 	using htd::IHypergraph;
 	using htd::IMutableHypergraph;
-	using htd::hyperedge_t;
 	using htd::vertex_t;
 		
 	using std::string;
@@ -23,6 +23,7 @@ namespace dynasp
 	using std::make_pair;
 	using std::pair;
 	using std::unordered_map;
+	using std::unique_ptr;
 
 	GroundAspInstance::GroundAspInstance() : maxAtom_(1) { }
 
@@ -58,34 +59,15 @@ namespace dynasp
 
 	IHypergraph *GroundAspInstance::toHypergraph() const
 	{
-		//FIXME: implement dependency injection light
-		IMutableHypergraph *ret = this->createEmptyHypergraph();
+		unique_ptr<IHypergraphConverter> converter(
+				create::hypergraphConverter());
 
-		//FIXME: use IInstanceToHypergraphConverter, instead of hard-coded
-		//		 graph structure
-		for(IGroundAspRule * const &rule : rules_)
-		{
-			hyperedge_t edge;
-			edge.push_back(ret->addVertex());
-
-			for(const atom_t &atom : *rule)
-				edge.push_back(atom);
-
-			//FIXME: debug
-			std::cout << "edge: ";
-			printColl(edge);
-			std::cout << std::endl;
-			//FIXME: end debug
-
-			ret->addEdge(edge);
-		}
-
-		return ret;
+		return converter->convert(*this);
 	}
 
 	bool GroundAspInstance::isRule(vertex_t vertex) const
 	{
-		return vertex > maxAtom_;
+		return vertex > maxAtom_ && vertex < maxAtom_ + 1 + rules_.size();
 	}
 
 	bool GroundAspInstance::isAtom(vertex_t vertex) const
@@ -93,7 +75,7 @@ namespace dynasp
 		return vertex <= maxAtom_;
 	}
 
-	const IGroundAspRule &GroundAspInstance::rule(htd::vertex_t rule) const
+	const IGroundAspRule &GroundAspInstance::rule(rule_t rule) const
 	{
 		if(!isRule(rule))
 			throw std::invalid_argument("Argument 'rule' is not a rule.");
@@ -116,12 +98,6 @@ namespace dynasp
 					!= negativeAtomWeights_.end())
 				weight += it->second;
 		return weight;
-	}
-
-	IMutableHypergraph *GroundAspInstance::createEmptyHypergraph() const
-	{
-		//FIXME: implement dependency injection light
-		return new htd::MutableHypergraphImpl(maxAtom_);
 	}
 
 }// namespace dynasp

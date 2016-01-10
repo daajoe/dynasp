@@ -1,10 +1,9 @@
 #ifdef HAVE_CONFIG_H
 	#include <config.h>
 #endif
+#include "../util/debug.hpp"
 
 #include "GroundAspRule.hpp"
-
-#include "../debug.cpp"
 
 namespace dynasp
 {
@@ -137,7 +136,7 @@ namespace dynasp
 			false,
 			false,
 			ei1.minBodyWeight + ei2.minBodyWeight,
-			maximumBodyWeight_ - ei1.maxBodyWeight - ei2.maxBodyWeight,
+			ei1.maxBodyWeight + ei2.maxBodyWeight - maximumBodyWeight_,
 			ei1.seenHeadAtoms + ei2.seenHeadAtoms
 		};
 
@@ -165,6 +164,8 @@ namespace dynasp
 					&& head_.find(atom) != head_.end())
 				--ei.seenHeadAtoms;
 
+		if(choiceRule_ && !headFalse && ei.seenHeadAtoms == head_.size())
+			return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
 		if(ei.maxBodyWeight < minimumBodyWeight_)
 			return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
 		if(ei.seenHeadAtoms == head_.size()
@@ -176,14 +177,9 @@ namespace dynasp
 
 	IGroundAspRule::const_iterator GroundAspRule::begin() const
 	{
-		//FIXME: debug
-		std::cout << this;
-		std::cout << " " << (choiceRule_ ? "c" : "h"); printColl(head_);
-		std::cout << " p"; printMap(positiveBody_);
-		std::cout << " n"; printMap(negativeBody_);
-		std::cout << " >= " << minimumBodyWeight_;
-		std::cout << std::endl;
-		//FIXME: end debug
+		DBG(this); DBG(" "); DBG(choiceRule_ ? "c" : "h"); DBG_COLL(head_);
+		DBG(" p"); DBG_MAP(positiveBody_); DBG(" n"); DBG_MAP(negativeBody_);
+		DBG(" >= "); DBG(minimumBodyWeight_); DBG(std::endl);
 
 		return IGroundAspRule::const_iterator(new ConstEnumerator(
 					head_.begin(), head_.end(),

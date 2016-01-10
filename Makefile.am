@@ -53,32 +53,51 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/main \
 	include/dynasp/global \
 	\
-	include/dynasp/IFactory.hpp \
-	include/dynasp/IParser.hpp \
+	include/dynasp/IDynAspCountingSolutionExtractor.hpp \
+	include/dynasp/IDynAspCountingSolution.hpp \
+	include/dynasp/IDynAspTupleFactory.hpp \
+	include/dynasp/IDynAspTuple.hpp \
+	include/dynasp/IGroundAspInstanceFactory.hpp \
 	include/dynasp/IGroundAspInstance.hpp \
+	include/dynasp/IGroundAspRuleFactory.hpp \
 	include/dynasp/IGroundAspRule.hpp \
+	include/dynasp/IHypergraphConverterFactory.hpp \
+	include/dynasp/IHypergraphConverter.hpp \
+	include/dynasp/IParserFactory.hpp \
+	include/dynasp/IParser.hpp \
+	\
+	include/dynasp/create.hpp \
+	include/dynasp/Parser.hpp \
 	\
 	include/dynasp/Atom.hpp \
 	include/dynasp/Rule.hpp \
+	\
 	include/dynasp/TreeNodeInfo.hpp \
-	include/dynasp/Parser.hpp \
-	include/dynasp/Factory.hpp
+	include/dynasp/DynAspAlgorithm.hpp
 
 # list all source code files for the libdynasp.la library
 libdynasp_la_SOURCES = \
 	src/assembly.cpp \
 	\
-	src/Factory.cpp \
+	src/create.cpp \
 	src/Parser.cpp \
 	\
-	src/algorithms/DynAspAlgorithm.cpp \
 	src/algorithms/ClassicDynAspTuple.cpp \
 	src/algorithms/ClassicDynAspTuple.hpp \
+	src/algorithms/DynAspAlgorithm.cpp \
+	src/algorithms/DynAspCountingSolutionExtractor.cpp \
+	src/algorithms/DynAspCountingSolutionExtractor.hpp \
+	src/algorithms/DynAspCountingSolution.cpp \
+	src/algorithms/DynAspCountingSolution.hpp \
 	\
 	src/instances/GroundAspInstance.cpp \
 	src/instances/GroundAspInstance.hpp \
 	src/instances/GroundAspRule.cpp \
 	src/instances/GroundAspRule.hpp \
+	src/instances/IncidenceHypergraphConverter.cpp \
+	src/instances/IncidenceHypergraphConverter.hpp \
+	src/instances/PrimalHypergraphConverter.cpp \
+	src/instances/PrimalHypergraphConverter.hpp \
 	\
 	src/parsers/LParseBisonParser.hpp \
 	src/parsers/LParseBisonParser.yy \
@@ -88,7 +107,9 @@ libdynasp_la_SOURCES = \
 	src/parsers/LParseParser.hpp \
 	\
 	src/util/errorhandling.cpp \
-	src/util/errorhandling.hpp
+	src/util/errorhandling.hpp \
+	src/util/debug.cpp \
+	src/util/debug.hpp
 
 # tell automake that the installation directory for public header files of the
 # libdynasp.la library should be a subfolder in the default ${includedir}

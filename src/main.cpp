@@ -172,6 +172,8 @@ namespace
 
 int main(int argc, char *argv[])
 {
+	sharp::Benchmark::registerTimestamp("program start");
+
 	const DynAspOptions opts(argc, argv);
 
 	if(opts.error)
@@ -221,6 +223,7 @@ int main(int argc, char *argv[])
 	std::unique_ptr<dynasp::IGroundAspInstance> instance(
 		parser->parse(inputStream));
 	parser.reset();
+	sharp::Benchmark::registerTimestamp("parsing time");
 
 	if(!instance.get())
 		exit(EXIT_PARSING_ERROR);
@@ -241,6 +244,12 @@ int main(int argc, char *argv[])
 	std::cout << " done." << std::endl;
 	std::cout << "OPTIMAL WEIGHT: " << solution->optimalWeight() << std::endl;
 	std::cout << "SOLUTION COUNT: " << solution->count() << std::endl;
+
+	if(opts.printBenchmarks)
+	{
+		std::cout << std::endl;
+		sharp::Benchmark::printBenchmarks(std::cout);
+	}
 
 	return EXIT_SUCCESS;
 }

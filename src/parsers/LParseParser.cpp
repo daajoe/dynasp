@@ -46,7 +46,6 @@ namespace dynasp
 		//TODO: proper error handling
 		if(error)
 		{
-			std::cout << "fuck" << std::endl;
 			delete result;
 			return nullptr;
 		}

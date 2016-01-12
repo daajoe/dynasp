@@ -30,7 +30,7 @@ namespace dynasp
 					dynamic_cast<const GroundAspInstance &>(instance));
 		
 		//TODO: implement this method for the general case
-		throw new std::logic_error("not implemented yet");
+		throw std::logic_error("not implemented yet");
 	}
 
 	IHypergraph *PrimalHypergraphConverter::convert(
@@ -52,7 +52,8 @@ namespace dynasp
 
 			DBG("edge: "); DBG_COLL(edge); DBG(std::endl);
 
-			hypergraph->addEdge(htd::Collection<vertex_t>(edge));
+			hypergraph->addEdge(htd::ConstCollection<vertex_t>(
+						edge.begin(), edge.end()));
 		}
 
 		return hypergraph;

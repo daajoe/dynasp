@@ -20,7 +20,7 @@ namespace dynasp
 	using htd::vertex_container;
 	using htd::ILabelingFunction;
 	using htd::ITreeDecomposition;
-	using htd::Collection;
+	using htd::ConstCollection;
 
 	using sharp::IInstance;
 	using sharp::INodeTupleSetMap;
@@ -63,9 +63,9 @@ namespace dynasp
 			vertex_container()
 		};
 
-		const Collection<vertex_t> &remembered =
+		const ConstCollection<vertex_t> remembered =
 			decomposition.rememberedVertices(node);
-		const Collection<vertex_t> &introduced =
+		const ConstCollection<vertex_t> introduced =
 			decomposition.introducedVertices(node);
 
 		for(auto i = remembered.begin(); i!= remembered.end(); ++i)
@@ -73,7 +73,8 @@ namespace dynasp
 			vertex_t vertex = *i;
 			
 			//FIXME: do this via labelling functions
-			if(info.instance.isRule(vertex)) info.rememberedRules.push_back(vertex);
+			if(info.instance.isRule(vertex))
+				info.rememberedRules.push_back(vertex);
 			else info.rememberedAtoms.push_back(vertex);
 		}
 
@@ -82,7 +83,8 @@ namespace dynasp
 			vertex_t vertex = *i;
 			
 			//FIXME: do this via labelling functions
-			if(info.instance.isRule(vertex)) info.introducedRules.push_back(vertex);
+			if(info.instance.isRule(vertex))
+				info.introducedRules.push_back(vertex);
 			else info.introducedAtoms.push_back(vertex);
 		}
 
@@ -105,15 +107,10 @@ namespace dynasp
 		{
 			child = decomposition.child(node, 0);
 
-			const Collection<vertex_t> &childRemembered =
-				decomposition.rememberedVertices(child);
-			const Collection<vertex_t> &childIntroduced = 
-				decomposition.introducedVertices(child);
+			const ConstCollection<vertex_t> childBag =
+				decomposition.bagContent(child);
 
-			for(auto i = childRemembered.begin(); i != childRemembered.end(); ++i)
-				joinBase.insert(*i);
-
-			for(auto i = childIntroduced.begin(); i != childIntroduced.end(); ++i)
+			for(auto i = childBag.begin(); i != childBag.end(); ++i)
 				joinBase.insert(*i);
 		}
 
@@ -134,19 +131,13 @@ namespace dynasp
 			if(childIndex + 1 < childCount)
 			{
 				nextChild = decomposition.child(node, childIndex + 1);
-				const Collection<vertex_t> &nextRemembered =
-					decomposition.rememberedVertices(nextChild);
-				const Collection<vertex_t> &nextIntroduced = 
-					decomposition.introducedVertices(nextChild);
+				const ConstCollection<vertex_t> nextBag =
+					decomposition.bagContent(nextChild);
 
 				//FIXME: tree decomposition should supply this
 				nextJoinVertices->clear();
 
-				for(auto i = nextIntroduced.begin(); i != nextIntroduced.end(); ++i)
-					if(!joinBase.insert(*i).second)
-						nextJoinVertices->push_back(*i);
-
-				for(auto i = nextRemembered.begin(); i != nextRemembered.end(); ++i)
+				for(auto i = nextBag.begin(); i != nextBag.end(); ++i)
 					if(!joinBase.insert(*i).second)
 						nextJoinVertices->push_back(*i);
 			}
@@ -204,6 +195,7 @@ namespace dynasp
 			
 
 			// elsewise, join our tuples to the current set
+			vertex_t prevChild = decomposition.child(node, childIndex - 1);
 			for(IDynAspTuple *tuple : merged)
 			{
 				size_t bucketIndex = prev.bucket(tuple);
@@ -213,9 +205,10 @@ namespace dynasp
 						 ++joinIter)
 					if(nullptr != (tmp = (*joinIter)->join(
 									info,
-									*joinVertices, //FIXME
-									*joinVertices, //FIXME
-									*tuple)))
+									decomposition.bagContent(prevChild),
+									*joinVertices,
+									*tuple,
+									decomposition.bagContent(child))))
 						curr.insert(tmp);
 
 				delete tuple;

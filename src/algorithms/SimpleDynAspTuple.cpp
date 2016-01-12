@@ -9,11 +9,15 @@
 
 namespace dynasp
 {
+	using htd::vertex_t;
+	using htd::ConstCollection;
+	using htd::vertex_container;
+
+	using sharp::Hash;
+
 	using std::size_t;
 	using std::unordered_set;
 	using std::stack;
-
-	using sharp::Hash;
 
 	size_t SimpleDynAspTuple::DynAspCertificate::hash() const
 	{
@@ -24,7 +28,7 @@ namespace dynasp
 		hash.incorporateUnordered();
 		hash.add(this->atoms.size());
 
-		hash.add(this->same ? 1 : 0);
+		hash.add(this->same ? (size_t)1 : (size_t)0);
 
 		return hash.get();
 	}
@@ -52,8 +56,8 @@ namespace dynasp
 		DBG(std::endl); DBG("  merge\t");
 		DBG_COLL(atoms_); DBG("=");  DBG_COLL(mergee.atoms_);
 		DBG("\t");
-		DBG_CERT(certificates_); DBG("=");
-		DBG_CERT(mergee.certificates_);
+		DBG_SCERT(certificates_); DBG("=");
+		DBG_SCERT(mergee.certificates_);
 
 		if(atoms_ != mergee.atoms_) return false;
 
@@ -168,6 +172,13 @@ namespace dynasp
 					atom_vector(0),
 					info.introducedRules);
 
+			validTuple &= checkRules(
+					info.instance,
+					trueAtoms,
+					falseAtoms,
+					atom_vector(0),
+					info.rememberedRules);
+
 			DBG("\t"); DBG(validTuple ? "yes" : "no");
 			
 			if(validTuple)
@@ -189,9 +200,7 @@ namespace dynasp
 				
 				// introduce atoms into certificates
 				atom_vector certTrueAtoms,
-							certNewTrueAtoms,
-							reductFalseAtoms,
-							newReductFalseAtoms;
+							reductFalseAtoms;
 				for(const DynAspCertificate &cert : certificates_)
 				{
 					for(atom_t atom : atoms_)
@@ -207,16 +216,9 @@ namespace dynasp
 					{
 						for(size_t bit = 0; bit < certIntro; ++bit)
 							if((certSubset >> bit) & 1)
-							{
 								certTrueAtoms.push_back(newTrueAtoms[bit]);
-								certNewTrueAtoms.push_back(newTrueAtoms[bit]);
-							}
 							else
-							{
 								reductFalseAtoms.push_back(newTrueAtoms[bit]);
-								newReductFalseAtoms.push_back(
-										newTrueAtoms[bit]);
-							}
 
 						DynAspCertificate newCert;
 
@@ -227,6 +229,13 @@ namespace dynasp
 								falseAtoms,
 								reductFalseAtoms,
 								info.introducedRules);
+
+						validCert &= checkRules(
+								info.instance,
+								certTrueAtoms,
+								falseAtoms,
+								reductFalseAtoms,
+								info.rememberedRules);
 
 						if(validCert)
 						{
@@ -241,8 +250,6 @@ namespace dynasp
 						}
 		
 						// cleanup
-						certNewTrueAtoms.clear();
-						newReductFalseAtoms.clear();
 						for(size_t bit = 0; bit < certIntro; ++bit)
 							if((certSubset >> bit) & 1)
 								certTrueAtoms.pop_back();
@@ -256,7 +263,7 @@ namespace dynasp
 				}
 
 				DBG(std::endl); DBG("\t\t");
-				DBG_CERT(newTuple->certificates_);
+				DBG_SCERT(newTuple->certificates_);
 
 				outputTuples.insert(newTuple);
 			}
@@ -308,26 +315,28 @@ namespace dynasp
 
 	IDynAspTuple *SimpleDynAspTuple::join(
 			const TreeNodeInfo &info,
-			const atom_vector &joinAtoms,
-			const rule_vector &joinRules,
-			const IDynAspTuple &tuple) const
+			const ConstCollection<vertex_t>,
+			const vertex_container &joinVertices,
+			const IDynAspTuple &tuple,
+			const ConstCollection<vertex_t>) const
 	{
 		const SimpleDynAspTuple &other =
 			static_cast<const SimpleDynAspTuple &>(tuple);
 
 		DBG(std::endl); DBG("  join ");
-		DBG_COLL(joinAtoms); DBG("\t");
+		DBG_COLL(joinVertices); DBG("\t");
 		DBG_COLL(atoms_); DBG("x"); DBG_COLL(other.atoms_);
 		DBG("\t");
-		DBG_CERT(certificates_); DBG("x");
-		DBG_CERT(other.certificates_);
+		DBG_SCERT(certificates_); DBG("x");
+		DBG_SCERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
 		SimpleDynAspTuple *newTuple = new SimpleDynAspTuple(false);
 
 		// check that atom assignment matches on the join atoms
-		for(atom_t atom : joinAtoms)
-			if(atoms_.find(atom) == atoms_.end())
+		for(atom_t atom : joinVertices)
+			if(!info.instance.isAtom(atom)) continue;
+			else if(atoms_.find(atom) == atoms_.end())
 			{
 				if(other.atoms_.find(atom) != other.atoms_.end())
 				{
@@ -351,7 +360,7 @@ namespace dynasp
 					trueAtoms,
 					falseAtoms,
 					atom_vector(0),
-					joinRules))
+					info.rememberedRules))
 		{
 			delete newTuple;
 			return nullptr;
@@ -376,8 +385,9 @@ namespace dynasp
 		{
 			// check if join condition is fulfilled
 			bool skip = false;
-			for(atom_t atom : joinAtoms)
-				if(cert1.atoms.find(atom) == cert1.atoms.end())
+			for(atom_t atom : joinVertices)
+				if(!info.instance.isAtom(atom)) continue;
+				else if(cert1.atoms.find(atom) == cert1.atoms.end())
 				{
 					if(cert2.atoms.find(atom) != cert2.atoms.end())
 					{
@@ -405,7 +415,7 @@ namespace dynasp
 						certTrueAtoms,
 						certFalseAtoms,
 						atom_vector(0),
-						joinRules))
+						info.rememberedRules))
 			{
 				continue;
 			}
@@ -451,6 +461,8 @@ namespace dynasp
 	{
 		for(const auto rule : rules)
 		{
+			if(!instance.isRule(rule)) continue;
+
 			IGroundAspRule::SatisfiabilityInfo si =
 				instance.rule(rule).check(
 						trueAtoms,

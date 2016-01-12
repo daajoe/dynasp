@@ -35,9 +35,10 @@ namespace dynasp
 
 		virtual IDynAspTuple *join(
 				const TreeNodeInfo &info,
-				const atom_vector &joinAtoms,
-				const rule_vector &joinRules,
-				const IDynAspTuple &tuple) const;
+				const htd::ConstCollection<htd::vertex_t> baseVertices,
+				const htd::vertex_container &joinVertices,
+				const IDynAspTuple &tuple,
+				const htd::ConstCollection<htd::vertex_t> tupleVertices) const;
 
 		virtual bool operator==(const ITuple &other) const;
 
@@ -50,7 +51,7 @@ namespace dynasp
 
 			std::size_t hash() const;
 			bool operator==(const DynAspCertificate &other) const;
-		}
+		};
 
 		typedef std::unordered_set<atom_t> atom_set;
 		typedef std::unordered_set<rule_t> rule_set;
@@ -71,6 +72,14 @@ namespace dynasp
 				const atom_vector &falseAtoms,
 				const atom_vector &reductFalseAtoms,
 				const rule_vector &rules,
+				rule_set &outputRules);
+
+		static bool checkRules(
+				const IGroundAspInstance &instance,
+				const atom_vector &trueAtoms,
+				const atom_vector &falseAtoms,
+				const atom_vector &reductFalseAtoms,
+				const rule_set &rules,
 				rule_set &outputRules);
 
 		static bool checkJoinRules(

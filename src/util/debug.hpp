@@ -68,6 +68,37 @@ namespace dynasp
 			}
 			out << "]";
 		}
+		
+		template<typename T>
+		static void printSimpleCert(std::ostream &out, const T &coll)
+		{
+			out << "[";
+			const char *sep = "";
+			for(const auto o : coll)
+			{
+				out << sep;
+				out << (o.same ? "+" : ":");
+				printColl(out, o.atoms);
+				sep = ",";
+			}
+			out << "]";
+		}
+
+		template<typename T>
+		static void printRuleSetCert(std::ostream &out, const T &coll)
+		{
+			out << "[";
+			const char *sep = "";
+			for(const auto o : coll)
+			{
+				out << sep;
+				printColl(out, o.atoms);
+				out << (o.same ? "+" : ":");
+				printColl(out, o.rules);
+				sep = ",";
+			}
+			out << "]";
+		}
 
 	private:
 		Debug();
@@ -93,6 +124,12 @@ namespace dynasp
 #define DBG_CERT(x) \
 	Debug::printCert(Debug::stream, (x))
 
+#define DBG_SCERT(x) \
+	Debug::printSimpleCert(Debug::stream, (x))
+
+#define DBG_RSCERT(x) \
+	Debug::printRuleSetCert(Debug::stream, (x))
+
 #else // !DEBUG
 
 #define DBG_SET(...)
@@ -101,6 +138,8 @@ namespace dynasp
 #define DBG_MAP(...)
 #define DBG_RULMAP(...)
 #define DBG_CERT(...)
+#define DBG_SCERT(...)
+#define DBG_RSCERT(...)
 
 #endif // DEBUG
 

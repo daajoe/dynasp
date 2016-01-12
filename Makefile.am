@@ -82,13 +82,19 @@ libdynasp_la_SOURCES = \
 	src/create.cpp \
 	src/Parser.cpp \
 	\
-	src/algorithms/ClassicDynAspTuple.cpp \
-	src/algorithms/ClassicDynAspTuple.hpp \
 	src/algorithms/DynAspAlgorithm.cpp \
+	src/algorithms/DynAspCountingSolution.cpp \
 	src/algorithms/DynAspCountingSolutionExtractor.cpp \
 	src/algorithms/DynAspCountingSolutionExtractor.hpp \
-	src/algorithms/DynAspCountingSolution.cpp \
 	src/algorithms/DynAspCountingSolution.hpp \
+	src/algorithms/FullDynAspTuple.cpp \
+	src/algorithms/FullDynAspTuple.hpp \
+	src/algorithms/InverseSimpleDynAspTuple.cpp \
+	src/algorithms/InverseSimpleDynAspTuple.hpp \
+	src/algorithms/RuleSetDynAspTuple.cpp \
+	src/algorithms/RuleSetDynAspTuple.hpp \
+	src/algorithms/SimpleDynAspTuple.cpp \
+	src/algorithms/SimpleDynAspTuple.hpp \
 	\
 	src/instances/GroundAspInstance.cpp \
 	src/instances/GroundAspInstance.hpp \
@@ -96,6 +102,8 @@ libdynasp_la_SOURCES = \
 	src/instances/GroundAspRule.hpp \
 	src/instances/IncidenceHypergraphConverter.cpp \
 	src/instances/IncidenceHypergraphConverter.hpp \
+	src/instances/IncidencePrimalHypergraphConverter.cpp \
+	src/instances/IncidencePrimalHypergraphConverter.hpp \
 	src/instances/PrimalHypergraphConverter.cpp \
 	src/instances/PrimalHypergraphConverter.hpp \
 	\

@@ -27,7 +27,7 @@ namespace dynasp
 					dynamic_cast<const GroundAspInstance &>(instance));
 		
 		//TODO: implement this method for the general case
-		throw new std::logic_error("not implemented yet");
+		throw std::logic_error("not implemented yet");
 	}
 
 	IHypergraph *IncidenceHypergraphConverter::convert(

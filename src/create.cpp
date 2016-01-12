@@ -6,16 +6,22 @@
 #include "instances/GroundAspInstance.hpp"
 #include "instances/PrimalHypergraphConverter.hpp"
 #include "instances/IncidenceHypergraphConverter.hpp"
-#include "algorithms/ClassicDynAspTuple.hpp"
+#include "instances/IncidencePrimalHypergraphConverter.hpp"
+#include "algorithms/FullDynAspTuple.hpp"
+#include "algorithms/SimpleDynAspTuple.hpp"
+#include "algorithms/RuleSetDynAspTuple.hpp"
+#include "algorithms/InverseSimpleDynAspTuple.hpp"
 #include "algorithms/DynAspCountingSolutionExtractor.hpp"
 
 #include <dynasp/create.hpp>
+
+#include <stdexcept>
 
 namespace dynasp
 {
 	namespace
 	{
-		create::ConfigurationType type_ = create::DEFAULT;
+		create::ConfigurationType type_ = create::INCIDENCE_FULLTUPLE;
 		IGroundAspRuleFactory *ruleFactory_ = nullptr;
 		IGroundAspInstanceFactory *instanceFactory_ = nullptr;
 		IHypergraphConverterFactory *hypergraphConverterFactory_ = nullptr;
@@ -26,15 +32,17 @@ namespace dynasp
 	{
 		switch(type)
 		{
-		case create::PRIMAL_CLASSICCERTIFICATES:
-		case create::PRIMAL_INVERSECERTIFICATES:
-		case create::INCIDENCE_CLASSICCERTIFICATES:
+		case create::PRIMAL_FULLTUPLE:
+		case create::PRIMAL_SIMPLETUPLE:
+		case create::PRIMAL_INVERSESIMPLETUPLE:
+		case create::INCIDENCE_FULLTUPLE:
+		case create::INCIDENCEPRIMAL_FULLTUPLE:
+		case create::INCIDENCEPRIMAL_RULESETTUPLE:
 			type_ = type;
 			break;
 
-		case create::DEFAULT:
 		default:
-			type_ = create::DEFAULT;
+			throw std::domain_error("Invalid type.");
 			break;
 		}
 	}
@@ -69,6 +77,7 @@ namespace dynasp
 	
 	IGroundAspRule *create::rule()
 	{
+		if(ruleFactory_) return ruleFactory_->create();
 		return create::rule(type_);
 	}
 
@@ -76,16 +85,14 @@ namespace dynasp
 	{
 		switch(type)
 		{
-		case create::DEFAULT:
 		default:
-			if(ruleFactory_)
-				return ruleFactory_->create();
 			return new GroundAspRule();
 		}
 	}
 
 	IGroundAspInstance *create::instance()
 	{
+		if(instanceFactory_) return instanceFactory_->create();
 		return create::instance(type_);
 	}
 
@@ -93,16 +100,15 @@ namespace dynasp
 	{
 		switch(type)
 		{
-		case create::DEFAULT:
 		default:
-			if(instanceFactory_)
-				return instanceFactory_->create();
 			return new GroundAspInstance();
 		}
 	}
 
 	IHypergraphConverter *create::hypergraphConverter()
 	{
+		if(hypergraphConverterFactory_)
+			return hypergraphConverterFactory_->create();
 		return create::hypergraphConverter(type_);
 	}
 
@@ -110,25 +116,26 @@ namespace dynasp
 	{
 		switch(type)
 		{
-		case create::PRIMAL_CLASSICCERTIFICATES:
-		case create::PRIMAL_INVERSECERTIFICATES:
-			std::cout << "foo1" << std::endl;
+		case create::PRIMAL_FULLTUPLE:
+		case create::PRIMAL_SIMPLETUPLE:
+		case create::PRIMAL_INVERSESIMPLETUPLE:
 			return new PrimalHypergraphConverter();
 
-		case create::INCIDENCE_CLASSICCERTIFICATES:
-			std::cout << "foo2" << std::endl;
+		case create::INCIDENCE_FULLTUPLE:
 			return new IncidenceHypergraphConverter();
 
-		case create::DEFAULT:
+		case create::INCIDENCEPRIMAL_FULLTUPLE:
+		case create::INCIDENCEPRIMAL_RULESETTUPLE:
+			return new IncidencePrimalHypergraphConverter();
+
 		default:
-			if(hypergraphConverterFactory_)
-				return hypergraphConverterFactory_->create();
-			return new PrimalHypergraphConverter();
+			throw std::domain_error("Invalid type.");
 		}
 	}
 
 	IDynAspTuple *create::tuple(bool leaf)
 	{
+		if(tupleFactory_) return tupleFactory_->create(leaf);
 		return create::tuple(leaf, type_); 
 	}
 
@@ -136,11 +143,22 @@ namespace dynasp
 	{
 		switch(type)
 		{
-		case create::DEFAULT:
+		case create::PRIMAL_FULLTUPLE:
+		case create::INCIDENCE_FULLTUPLE:
+		case create::INCIDENCEPRIMAL_FULLTUPLE:
+			return new FullDynAspTuple(leaf);
+
+		case create::PRIMAL_SIMPLETUPLE:
+			return new SimpleDynAspTuple(leaf);
+
+		case create::PRIMAL_INVERSESIMPLETUPLE:
+			return new InverseSimpleDynAspTuple(leaf);
+
+		case create::INCIDENCEPRIMAL_RULESETTUPLE:
+			return new RuleSetDynAspTuple(leaf);
+
 		default:
-			if(tupleFactory_)
-				return tupleFactory_->create(leaf);
-			return new ClassicDynAspTuple(leaf);
+			throw std::domain_error("Invalid type.");
 		}
 	}
 

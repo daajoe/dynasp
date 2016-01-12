@@ -40,9 +40,10 @@ namespace dynasp
 
 		virtual IDynAspTuple *join(
 				const TreeNodeInfo &info,
-				const atom_vector &joinAtoms,
-				const rule_vector &joinRules,
-				const IDynAspTuple &tuple) const = 0;
+				const htd::ConstCollection<htd::vertex_t> baseVertices,
+				const htd::vertex_container &joinVertices,
+				const IDynAspTuple &tuple,
+				const htd::ConstCollection<htd::vertex_t> tupleVertices) const = 0;
 
 		//TODO: move this to cpp file(s)
 		struct merge_hash
@@ -74,5 +75,4 @@ namespace dynasp
 	inline IDynAspTuple::~IDynAspTuple() { }
 
 } // namespace dynasp
-
 #endif // DYNASP_DYNASP_IDYNASPTUPLE_H_

@@ -58,6 +58,31 @@ namespace dynasp
 		minimumBodyWeight_ = weight;
 	}
 
+	bool GroundAspRule::hasWeightedBody() const
+	{
+		return minimumBodyWeight_ != maximumBodyWeight_;
+	}
+
+	bool GroundAspRule::hasChoiceHead() const
+	{
+		return choiceRule_;
+	}
+
+	bool GroundAspRule::isHeadAtom(atom_t atom) const
+	{
+		return head_.find(atom) != head_.end();
+	}
+
+	bool GroundAspRule::isPositiveBodyAtom(atom_t atom) const
+	{
+		return positiveBody_.find(atom) != positiveBody_.end();
+	}
+
+	bool GroundAspRule::isNegativeBodyAtom(atom_t atom) const
+	{
+		return positiveBody_.find(atom) != positiveBody_.end();
+	}
+
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,

@@ -23,6 +23,12 @@ namespace dynasp
 		virtual void addNegativeBodyAtom(atom_t atom, std::size_t weight);
 		virtual void setMinimumBodyWeight(std::size_t weight);
 
+		virtual bool hasWeightedBody() const;
+		virtual bool hasChoiceHead() const;
+		virtual bool isHeadAtom(atom_t atom) const;
+		virtual bool isPositiveBodyAtom(atom_t atom) const;
+		virtual bool isNegativeBodyAtom(atom_t atom) const;
+
 		virtual SatisfiabilityInfo check(
 				const atom_vector &trueAtoms,
 				const atom_vector &falseAtoms,

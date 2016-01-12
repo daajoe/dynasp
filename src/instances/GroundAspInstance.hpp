@@ -48,6 +48,7 @@ namespace dynasp
 	public:
 		friend class PrimalHypergraphConverter;
 		friend class IncidenceHypergraphConverter;
+		friend class IncidencePrimalHypergraphConverter;
 
 	}; // class GroundAspInstance
 

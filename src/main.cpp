@@ -29,7 +29,7 @@ namespace
 		DynAspOptions(int argc, char *argv[])
 		{
 			int opt;
-			while((opt = getopt(argc, argv, "vhbc:")) != -1)
+			while((opt = getopt(argc, argv, "vhbs:c:")) != -1)
 				switch(opt)
 				{
 				case 'v':
@@ -44,16 +44,42 @@ namespace
 					this->printBenchmarks = true;
 					break;
 
+				case 's':
+					this->useSeed = true;
+					this->seed = (unsigned)strtol(optarg, NULL, 10);
+					break;
+
 				case 'c':
 					this->customConfiguration = true;
 					switch(strtol(optarg, NULL, 10))
 					{
 					case 1:
-						//TODO
+						this->configuration = dynasp::create::PRIMAL_FULLTUPLE;
 						break;
 
 					case 2:
-						//TODO
+						this->configuration =
+							dynasp::create::PRIMAL_SIMPLETUPLE;
+						break;
+
+					case 3:
+						this->configuration =
+							dynasp::create::PRIMAL_INVERSESIMPLETUPLE;
+						break;
+
+					case 4:
+						this->configuration =
+							dynasp::create::INCIDENCE_FULLTUPLE;
+						break;
+
+					case 5:
+						this->configuration =
+							dynasp::create::INCIDENCEPRIMAL_FULLTUPLE;
+						break;
+
+					case 6:
+						this->configuration =
+							dynasp::create::INCIDENCEPRIMAL_RULESETTUPLE;
 						break;
 
 					default:
@@ -79,11 +105,13 @@ namespace
 		bool displayVersion = false; // -v, --version
 		bool displayHelp = false; // -h, --help
 		bool printBenchmarks = false; // -b, --benchmark
+		bool useSeed = false; // -s, --seed
+		unsigned seed = 0;
 		bool readFromFile = false;
 		char *fileToRead = nullptr;
 		bool customConfiguration = false; // -c <config>, --config=<config>
 		dynasp::create::ConfigurationType configuration
-			= dynasp::create::DEFAULT;
+			= dynasp::create::INCIDENCE_FULLTUPLE;
 	};
 
 	void
@@ -95,28 +123,41 @@ namespace
 			<< "Evaluate answer set programs via tree decompositions."
 				<< std::endl
 			<< std::endl
-			<< "Arguments to options are always mandatory." << std::endl
+			<< "Arguments to options are always mandatory. Valid options:"
+				<< std::endl
 			<< "  -v\t  output version information and exit" << std::endl
 			<< "  -h\t  display this help message and exit" << std::endl
 			<< "  -b\t  display timing information for benchmarks" << std::endl
+			<< "  -s NUM  set NUM as seed for the random number generator"
+				<< std::endl
 			<< "  -c NUM  set algorithm configuration to NUM:" << std::endl
-			<< "\t    1: primal graph, full certificates (default)" << std::endl
+			<< "\t    1: primal graph, full certificates" << std::endl
 			<< "\t    2: primal graph, optimized certificates" << std::endl
 			<< "\t    3: primal graph, inverse certificates" << std::endl
-			<< "\t    4: incidence graph, full certificates" << std::endl
+			<< "\t    4: incidence graph, full certificates (default)"
+				<< std::endl
 			<< "\t    5: incidence graph/primal constraints, full certificates"
 				<< std::endl
 			<< "\t    6: incidence graph/primal constraints, optimized "
 				<< "certificates" << std::endl
-			<< "\t    7: incidence graph/primal constraints, inverse "
-				<< "certificates" << std::endl;
+			<< std::endl
+			<< "Exit status: " << std::endl
+			<< " " << EXIT_SUCCESS << "  if OK," << std::endl
+			<< " " << EXIT_ARGUMENT_ERROR << "  if problems parsing options"
+				<< std::endl
+			<< " " << EXIT_FILEOPEN_ERROR << "  if problems opening input file"
+				<< std::endl
+			<< " " << EXIT_PARSING_ERROR << "  if problems parsing input"
+				<< std::endl
+			<< std::endl
+			<< "Report dynasp bugs to " << PACKAGE_BUGREPORT << std::endl;
 	}
 
 	void
-	printVersion(const char *programName)
+	printVersion()
 	{
 		std::cout
-			<< programName << " " << VERSION << std::endl
+			<< PACKAGE_STRING << std::endl
 			<< "Copyright (C) 2016 Michael Morak" << std::endl
 			<< "License GPLv3+: GNU GPL version 3 or later "
 				<< "<http://gnu.org/licenses/gpl.html>." << std::endl
@@ -147,8 +188,13 @@ int main(int argc, char *argv[])
 
 	if(opts.displayVersion)
 	{
-		printVersion(argv[0]);
+		printVersion();
 		exit(EXIT_SUCCESS);
+	}
+
+	if(opts.useSeed)
+	{
+		std::srand(opts.seed);
 	}
 
 	if(opts.customConfiguration) dynasp::create::set(opts.configuration);

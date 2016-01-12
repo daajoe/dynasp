@@ -9,11 +9,15 @@
 
 namespace dynasp
 {
+	using htd::vertex_t;
+	using htd::ConstCollection;
+	using htd::vertex_container;
+
+	using sharp::Hash;
+
 	using std::size_t;
 	using std::unordered_set;
 	using std::stack;
-
-	using sharp::Hash;
 
 	size_t RuleSetDynAspTuple::DynAspCertificate::hash() const
 	{
@@ -25,11 +29,11 @@ namespace dynasp
 		hash.add(this->atoms.size());
 
 		for(rule_t rule : this->rules)
-			hash.addUnordered(rule)
+			hash.addUnordered(rule);
 		hash.incorporateUnordered();
 		hash.add(this->rules.size());
 
-		hash.add(this->same ? 1 : 0);
+		hash.add(this->same ? (size_t)1 : (size_t)0);
 
 		return hash.get();
 	}
@@ -60,8 +64,8 @@ namespace dynasp
 		DBG("\t");
 		DBG_COLL(rules_); DBG("="); DBG_COLL(mergee.rules_);
 		DBG("\t");
-		DBG_CERT(certificates_); DBG("=");
-		DBG_CERT(mergee.certificates_);
+		DBG_RSCERT(certificates_); DBG("=");
+		DBG_RSCERT(mergee.certificates_);
 
 		if(atoms_ != mergee.atoms_) return false;
 		if(rules_ != mergee.rules_) return false;
@@ -179,8 +183,8 @@ namespace dynasp
 
 			bool validTuple = checkRules(
 					info.instance,
-					newTrueAtoms,
-					newFalseAtoms,
+					trueAtoms,
+					falseAtoms,
 					atom_vector(0),
 					rules_,
 					newTuple->rules_);
@@ -214,9 +218,7 @@ namespace dynasp
 				
 				// introduce atoms into certificates
 				atom_vector certTrueAtoms,
-							certNewTrueAtoms,
-							reductFalseAtoms,
-							newReductFalseAtoms;
+							reductFalseAtoms;
 				for(const DynAspCertificate &cert : certificates_)
 				{
 					for(atom_t atom : atoms_)
@@ -232,25 +234,18 @@ namespace dynasp
 					{
 						for(size_t bit = 0; bit < certIntro; ++bit)
 							if((certSubset >> bit) & 1)
-							{
 								certTrueAtoms.push_back(newTrueAtoms[bit]);
-								certNewTrueAtoms.push_back(newTrueAtoms[bit]);
-							}
 							else
-							{
 								reductFalseAtoms.push_back(newTrueAtoms[bit]);
-								newReductFalseAtoms.push_back(
-										newTrueAtoms[bit]);
-							}
 
 						DynAspCertificate newCert;
 
 						// check rules						
 						bool validCert = checkRules(
 								info.instance,
-								certNewTrueAtoms,
-								newFalseAtoms,
-								newReductFalseAtoms,
+								certTrueAtoms,
+								falseAtoms,
+								reductFalseAtoms,
 								cert.rules,
 								newCert.rules);
 
@@ -275,8 +270,6 @@ namespace dynasp
 						}
 		
 						// cleanup
-						certNewTrueAtoms.clear();
-						newReductFalseAtoms.clear();
 						for(size_t bit = 0; bit < certIntro; ++bit)
 							if((certSubset >> bit) & 1)
 								certTrueAtoms.pop_back();
@@ -290,7 +283,7 @@ namespace dynasp
 				}
 
 				DBG(std::endl); DBG("\t\t");
-				DBG_CERT(newTuple->certificates_);
+				DBG_RSCERT(newTuple->certificates_);
 
 				outputTuples.insert(newTuple);
 			}
@@ -364,28 +357,30 @@ namespace dynasp
 
 	IDynAspTuple *RuleSetDynAspTuple::join(
 			const TreeNodeInfo &info,
-			const atom_vector &joinAtoms,
-			const rule_vector &joinRules,
-			const IDynAspTuple &tuple) const
+			const ConstCollection<vertex_t>,
+			const vertex_container &joinVertices,
+			const IDynAspTuple &tuple,
+			const ConstCollection<vertex_t>) const
 	{
 		const RuleSetDynAspTuple &other =
 			static_cast<const RuleSetDynAspTuple &>(tuple);
 
 		DBG(std::endl); DBG("  join ");
-		DBG_COLL(joinAtoms); DBG("\t");
+		DBG_COLL(joinVertices); DBG("\t");
 		DBG_COLL(atoms_); DBG("x"); DBG_COLL(other.atoms_);
 		DBG("\t");
 		DBG_COLL(rules_); DBG("x"); DBG_COLL(other.rules_);
 		DBG("\t");
-		DBG_CERT(certificates_); DBG("x");
-		DBG_CERT(other.certificates_);
+		DBG_RSCERT(certificates_); DBG("x");
+		DBG_RSCERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
 		RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
 
 		// check that atom assignment matches on the join atoms
-		for(atom_t atom : joinAtoms)
-			if(atoms_.find(atom) == atoms_.end())
+		for(atom_t atom : joinVertices)
+			if(!info.instance.isAtom(atom)) continue;
+			else if(atoms_.find(atom) == atoms_.end())
 			{
 				if(other.atoms_.find(atom) != other.atoms_.end())
 				{
@@ -409,7 +404,7 @@ namespace dynasp
 					info.instance,
 					trueAtoms,
 					falseAtoms,
-					joinRules,
+					info.rememberedRules,
 					rules_,
 					other.rules_,
 					newTuple->rules_))
@@ -437,8 +432,9 @@ namespace dynasp
 		{
 			// check if join condition is fulfilled
 			bool skip = false;
-			for(atom_t atom : joinAtoms)
-				if(cert1.atoms.find(atom) == cert1.atoms.end())
+			for(atom_t atom : joinVertices)
+				if(!info.instance.isAtom(atom)) continue;
+				else if(cert1.atoms.find(atom) == cert1.atoms.end())
 				{
 					if(cert2.atoms.find(atom) != cert2.atoms.end())
 					{
@@ -465,7 +461,7 @@ namespace dynasp
 						info.instance,
 						certTrueAtoms,
 						certFalseAtoms,
-						joinRules,
+						info.rememberedRules,
 						cert1.rules,
 						cert2.rules,
 						newCert.rules))
@@ -511,7 +507,32 @@ namespace dynasp
 			const atom_vector &falseAtoms,
 			const atom_vector &reductFalseAtoms,
 			const rule_vector &rules,
-			rule_map &outputRules)
+			rule_set &outputRules)
+	{
+		for(rule_t rule : rules)
+		{
+			IGroundAspRule::SatisfiabilityInfo si =
+				instance.rule(rule).check(
+						trueAtoms,
+						falseAtoms,
+						reductFalseAtoms);
+
+			if(si.unsatisfied) return false;
+			if(si.satisfied) continue;
+
+			outputRules.insert(rule);
+		}
+
+		return true;
+	}
+
+	bool RuleSetDynAspTuple::checkRules(
+			const IGroundAspInstance &instance,
+			const atom_vector &trueAtoms,
+			const atom_vector &falseAtoms,
+			const atom_vector &reductFalseAtoms,
+			const rule_set &rules,
+			rule_set &outputRules)
 	{
 		for(rule_t rule : rules)
 		{
@@ -537,7 +558,7 @@ namespace dynasp
 			const rule_vector &rules,
 			const rule_set &leftRules,
 			const rule_set &rightRules,
-			rule_map &outputRules)
+			rule_set &outputRules)
 	{
 		rule_set mergedRules(rules.size());
 
@@ -552,13 +573,12 @@ namespace dynasp
 					instance.rule(rule).check(
 							trueAtoms,
 							falseAtoms,
-							leftIter->second,
-							rightIter->second);
+							atom_vector(0));
 
 				if(si.unsatisfied) return false;
 				if(si.satisfied) continue;
 
-				outputRules.insert(leftIter->first);
+				outputRules.insert(rule);
 			}
 			mergedRules.insert(rule);
 		}

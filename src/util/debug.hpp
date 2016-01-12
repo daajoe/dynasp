@@ -83,6 +83,20 @@ namespace dynasp
 			}
 			out << "]";
 		}
+	
+		template<typename T>
+		static void printInverseCert(std::ostream &out, const T &coll)
+		{
+			out << "[";
+			const char *sep = "";
+			for(const auto o : coll)
+			{
+				out << sep;
+				printColl(out, o.atoms);
+				sep = ",";
+			}
+			out << "]";
+		}
 
 		template<typename T>
 		static void printRuleSetCert(std::ostream &out, const T &coll)
@@ -126,6 +140,9 @@ namespace dynasp
 
 #define DBG_SCERT(x) \
 	Debug::printSimpleCert(Debug::stream, (x))
+
+#define DBG_ICERT(x) \
+	Debug::printInverseCert(Debug::stream, (x))
 
 #define DBG_RSCERT(x) \
 	Debug::printRuleSetCert(Debug::stream, (x))

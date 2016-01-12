@@ -6,6 +6,7 @@
 #include "InverseSimpleDynAspTuple.hpp"
 
 #include <stack>
+#include <cmath>
 
 namespace dynasp
 {
@@ -28,23 +29,18 @@ namespace dynasp
 		hash.incorporateUnordered();
 		hash.add(this->atoms.size());
 
-		hash.add(this->same ? (size_t)1 : (size_t)0);
-
 		return hash.get();
 	}
 
 	bool InverseSimpleDynAspTuple::DynAspCertificate::operator==(
 			const DynAspCertificate &other) const
 	{
-		return this->atoms == other.atoms
-			&& this->same == other.same;
+		return this->atoms == other.atoms;
 	}
 
-	InverseSimpleDynAspTuple::InverseSimpleDynAspTuple(bool leaf)
+	InverseSimpleDynAspTuple::InverseSimpleDynAspTuple(bool)
 		: weight_(0), solutions_(1)
-	{
-		if(leaf) certificates_.insert({ { }, true });
-	}
+	{ }
 
 	InverseSimpleDynAspTuple::~InverseSimpleDynAspTuple() { }
 
@@ -56,8 +52,8 @@ namespace dynasp
 		DBG(std::endl); DBG("  merge\t");
 		DBG_COLL(atoms_); DBG("=");  DBG_COLL(mergee.atoms_);
 		DBG("\t");
-		DBG_SCERT(certificates_); DBG("=");
-		DBG_SCERT(mergee.certificates_);
+		DBG_ICERT(certificates_); DBG("=");
+		DBG_ICERT(mergee.certificates_);
 
 		if(atoms_ != mergee.atoms_) return false;
 
@@ -79,7 +75,7 @@ namespace dynasp
 
 	bool InverseSimpleDynAspTuple::isSolution() const
 	{
-		return certificates_.size() == 1 && certificates_.begin()->same;
+		return certificates_.size() == (std::pow(2, atoms_.size()) - 1);
 	}
 
 	size_t InverseSimpleDynAspTuple::solutionCount() const
@@ -172,11 +168,19 @@ namespace dynasp
 					atom_vector(0),
 					info.introducedRules);
 
+			validTuple &= checkRules(
+					info.instance,
+					trueAtoms,
+					falseAtoms,
+					atom_vector(0),
+					info.rememberedRules);
+
 			DBG("\t"); DBG(validTuple ? "yes" : "no");
 			
 			if(validTuple)
 			{
-				InverseSimpleDynAspTuple *newTuple = new InverseSimpleDynAspTuple(false);
+				InverseSimpleDynAspTuple *newTuple =
+					new InverseSimpleDynAspTuple(false);
 
 				newTuple->atoms_.insert(
 						trueAtoms.begin(),
@@ -192,75 +196,50 @@ namespace dynasp
 				DBG(newTuple->solutions_);
 				
 				// introduce atoms into certificates
-				atom_vector certTrueAtoms,
-							certNewTrueAtoms,
-							reductFalseAtoms,
-							newReductFalseAtoms;
-				for(const DynAspCertificate &cert : certificates_)
+				size_t certIntro = trueAtoms.size();
+				for(size_t certSubset = 0;
+						certSubset < (1u << certIntro);
+						++certSubset)
 				{
-					for(atom_t atom : atoms_)
-						if(cert.atoms.find(atom) == cert.atoms.end())
-							reductFalseAtoms.push_back(atom);
+					atom_vector certTrueAtoms, reductFalseAtoms;
+					for(size_t bit = 0; bit < certIntro; ++bit)
+						if((certSubset >> bit) & 1)
+							certTrueAtoms.push_back(trueAtoms[bit]);
 						else
-							certTrueAtoms.push_back(atom);
-					
-					size_t certIntro = newTrueAtoms.size();
-					for(size_t certSubset = 0;
-							certSubset < (1u << certIntro);
-							++certSubset)
+							reductFalseAtoms.push_back(trueAtoms[bit]);
+
+					DynAspCertificate newCert;
+					newCert.atoms.insert(
+							certTrueAtoms.begin(),
+							certTrueAtoms.end());
+
+					if(certificates_.find(newCert) != certificates_.end())
 					{
-						for(size_t bit = 0; bit < certIntro; ++bit)
-							if((certSubset >> bit) & 1)
-							{
-								certTrueAtoms.push_back(newTrueAtoms[bit]);
-								certNewTrueAtoms.push_back(newTrueAtoms[bit]);
-							}
-							else
-							{
-								reductFalseAtoms.push_back(newTrueAtoms[bit]);
-								newReductFalseAtoms.push_back(
-										newTrueAtoms[bit]);
-							}
-
-						DynAspCertificate newCert;
-
-						// check rules						
-						bool validCert = checkRules(
-								info.instance,
-								certTrueAtoms,
-								falseAtoms,
-								reductFalseAtoms,
-								info.introducedRules);
-
-						if(validCert)
-						{
-							newCert.atoms.insert(
-									certTrueAtoms.begin(),
-									certTrueAtoms.end());
-
-							newCert.same = cert.same
-								&& certSubset == (1u << certIntro) - 1u;
-
-							newTuple->certificates_.insert(std::move(newCert));
-						}
-		
-						// cleanup
-						certNewTrueAtoms.clear();
-						newReductFalseAtoms.clear();
-						for(size_t bit = 0; bit < certIntro; ++bit)
-							if((certSubset >> bit) & 1)
-								certTrueAtoms.pop_back();
-							else
-								reductFalseAtoms.pop_back();
+						newTuple->certificates_.insert(std::move(newCert));
+						continue;
 					}
 
-					// cleanup
-					reductFalseAtoms.clear();
-					certTrueAtoms.clear();
+					// check rules						
+					bool validCert = checkRules(
+							info.instance,
+							certTrueAtoms,
+							falseAtoms,
+							reductFalseAtoms,
+							info.introducedRules);
+
+					validCert &= checkRules(
+							info.instance,
+							certTrueAtoms,
+							falseAtoms,
+							reductFalseAtoms,
+							info.rememberedRules);
+
+					if(!validCert)
+						newTuple->certificates_.insert(std::move(newCert));
 				}
 
 				DBG(std::endl); DBG("\t\t");
-				DBG_SCERT(newTuple->certificates_);
+				DBG_ICERT(newTuple->certificates_);
 
 				outputTuples.insert(newTuple);
 			}
@@ -277,34 +256,63 @@ namespace dynasp
 		}
 	}
 
-	IDynAspTuple *InverseSimpleDynAspTuple::project(const TreeNodeInfo &info) const
+	IDynAspTuple *InverseSimpleDynAspTuple::project(
+			const TreeNodeInfo &info) const
 	{
-		InverseSimpleDynAspTuple *newTuple = new InverseSimpleDynAspTuple(false);
+		InverseSimpleDynAspTuple *newTuple =
+			new InverseSimpleDynAspTuple(false);
 
 		// only keep remembered atoms
+		atom_vector falseAtoms;
 		for(atom_t atom : info.rememberedAtoms)
 			if(atoms_.find(atom) != atoms_.end())
 				newTuple->atoms_.insert(atom);
+			else
+				falseAtoms.push_back(atom);
 		
 		// keep weight and solution count
 		newTuple->weight_ = weight_;
 		newTuple->solutions_ = solutions_;
 		
 		// do the same for the certificates
-		for(const DynAspCertificate &cert : certificates_)
+		atom_vector tempAtoms(newTuple->atoms_.begin(), newTuple->atoms_.end());
+		size_t certIntro = tempAtoms.size();
+		for(size_t certSubset = 0;
+				certSubset < (1u << certIntro);
+				++certSubset)
 		{
+			atom_vector certTrueAtoms, reductFalseAtoms;
+			for(size_t bit = 0; bit < certIntro; ++bit)
+				if((certSubset >> bit) & 1)
+					certTrueAtoms.push_back(tempAtoms[bit]);
+				else
+					reductFalseAtoms.push_back(tempAtoms[bit]);
+
 			DynAspCertificate newCert;
 
-			// only keep remembered atoms
-			for(atom_t atom : info.rememberedAtoms)
-				if(cert.atoms.find(atom) != cert.atoms.end())
-					newCert.atoms.insert(atom); 
+			// check rules						
+			bool validCert = checkRules(
+					info.instance,
+					certTrueAtoms,
+					falseAtoms,
+					reductFalseAtoms,
+					info.introducedRules);
 
-			// copy whether cert represents the tuple
-			newCert.same = cert.same;
+			validCert &= checkRules(
+					info.instance,
+					certTrueAtoms,
+					falseAtoms,
+					reductFalseAtoms,
+					info.rememberedRules);
 
-			// add the new certificate
-			newTuple->certificates_.insert(std::move(newCert));
+			if(!validCert)
+			{
+				newCert.atoms.insert(
+						certTrueAtoms.begin(),
+						certTrueAtoms.end());
+
+				newTuple->certificates_.insert(std::move(newCert));
+			}
 		}
 
 		return newTuple;
@@ -324,11 +332,12 @@ namespace dynasp
 		DBG_COLL(joinVertices); DBG("\t");
 		DBG_COLL(atoms_); DBG("x"); DBG_COLL(other.atoms_);
 		DBG("\t");
-		DBG_SCERT(certificates_); DBG("x");
-		DBG_SCERT(other.certificates_);
+		DBG_ICERT(certificates_); DBG("x");
+		DBG_ICERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
-		InverseSimpleDynAspTuple *newTuple = new InverseSimpleDynAspTuple(false);
+		InverseSimpleDynAspTuple *newTuple =
+			new InverseSimpleDynAspTuple(false);
 
 		// check that atom assignment matches on the join atoms
 		for(atom_t atom : joinVertices)
@@ -368,64 +377,56 @@ namespace dynasp
 		for(atom_t atom : other.atoms_)
 			newTuple->atoms_.insert(atom);
 
+		atom_vector allFalseAtoms;
+		for(atom_t atom : info.rememberedAtoms)
+			if(newTuple->atoms_.find(atom) == newTuple->atoms_.end())
+				allFalseAtoms.push_back(atom);
+
 		// join weights/counts
 		newTuple->solutions_ = solutions_ * other.solutions_;
 		newTuple->weight_ = weight_ + other.weight_ - info.instance.weight(
 				trueAtoms,
 				falseAtoms);
 
-		// join certificates
-		//TODO: use something more intelligent than a nested loop join
-		atom_vector certTrueAtoms, certFalseAtoms;
-		for(const DynAspCertificate &cert1 : certificates_)
-		for(const DynAspCertificate &cert2 : other.certificates_)
+		// evaluate certificates
+		atom_vector tempAtoms(newTuple->atoms_.begin(), newTuple->atoms_.end());
+		size_t certIntro = tempAtoms.size();
+		for(size_t certSubset = 0;
+				certSubset < (1u << certIntro);
+				++certSubset)
 		{
-			// check if join condition is fulfilled
-			bool skip = false;
-			for(atom_t atom : joinVertices)
-				if(!info.instance.isAtom(atom)) continue;
-				else if(cert1.atoms.find(atom) == cert1.atoms.end())
-				{
-					if(cert2.atoms.find(atom) != cert2.atoms.end())
-					{
-						skip = true;
-						break;
-					}
-					certFalseAtoms.push_back(atom);
-				}
+			atom_vector certTrueAtoms, reductFalseAtoms;
+			for(size_t bit = 0; bit < certIntro; ++bit)
+				if((certSubset >> bit) & 1)
+					certTrueAtoms.push_back(tempAtoms[bit]);
 				else
-				{
-					if(cert2.atoms.find(atom) == cert2.atoms.end())
-					{
-						skip = true;
-						break;
-					}
-					certTrueAtoms.push_back(atom);
-				}
-			if(skip) continue;
+					reductFalseAtoms.push_back(tempAtoms[bit]);
 
 			DynAspCertificate newCert;
 
-			// join and check rules
-			if(!checkRules(
-						info.instance,
-						certTrueAtoms,
-						certFalseAtoms,
-						atom_vector(0),
-						info.rememberedRules))
+			// check rules						
+			bool validCert = checkRules(
+					info.instance,
+					certTrueAtoms,
+					allFalseAtoms,
+					reductFalseAtoms,
+					info.introducedRules);
+
+			validCert &= checkRules(
+					info.instance,
+					certTrueAtoms,
+					allFalseAtoms,
+					reductFalseAtoms,
+					info.rememberedRules);
+
+			if(!validCert)
 			{
-				continue;
+				newCert.atoms.insert(
+						certTrueAtoms.begin(),
+						certTrueAtoms.end());
+
+				newTuple->certificates_.insert(std::move(newCert));
 			}
-
-			newCert.atoms.insert(cert1.atoms.begin(), cert1.atoms.end());
-			newCert.atoms.insert(cert2.atoms.begin(), cert2.atoms.end());
-			newCert.same = cert1.same && cert2.same;
-
-			newTuple->certificates_.insert(std::move(newCert));
-
-			// cleanup
-			certTrueAtoms.clear();
-			certFalseAtoms.clear();
 		}
 
 		return newTuple;
@@ -458,6 +459,8 @@ namespace dynasp
 	{
 		for(const auto rule : rules)
 		{
+			if(!instance.isRule(rule)) continue;
+
 			IGroundAspRule::SatisfiabilityInfo si =
 				instance.rule(rule).check(
 						trueAtoms,

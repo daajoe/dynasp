@@ -29,7 +29,7 @@ namespace
 		DynAspOptions(int argc, char *argv[])
 		{
 			int opt;
-			while((opt = getopt(argc, argv, "vhbs:c:")) != -1)
+			while((opt = getopt(argc, argv, "vhbds:c:")) != -1)
 				switch(opt)
 				{
 				case 'v':
@@ -40,7 +40,13 @@ namespace
 					this->displayHelp = true;
 					break;
 
+				case 'd':
+					this->decompositionOnly = true;
+					break;
+
 				case 'b':
+					if(this->printBenchmarks)
+						this->printMachineReadable = true;
 					this->printBenchmarks = true;
 					break;
 
@@ -105,6 +111,8 @@ namespace
 		bool displayVersion = false; // -v, --version
 		bool displayHelp = false; // -h, --help
 		bool printBenchmarks = false; // -b, --benchmark
+		bool printMachineReadable = false; // 2x -b, --benchmark
+		bool decompositionOnly = false; // -d, --decomp
 		bool useSeed = false; // -s, --seed
 		unsigned seed = 0;
 		bool readFromFile = false;
@@ -127,7 +135,9 @@ namespace
 				<< std::endl
 			<< "  -v\t  output version information and exit" << std::endl
 			<< "  -h\t  display this help message and exit" << std::endl
-			<< "  -b\t  display timing information for benchmarks" << std::endl
+			<< "  -d\t  perform decomposition and print treewidth" << std::endl
+			<< "  -b\t  display timing information (use twice for CSV format)"
+				<< std::endl
 			<< "  -s NUM  set NUM as seed for the random number generator"
 				<< std::endl
 			<< "  -c NUM  set algorithm configuration to NUM:" << std::endl
@@ -237,18 +247,29 @@ int main(int argc, char *argv[])
 			dynasp::create::countingSolutionExtractor());
 	sharp::IterativeTreeTupleSolver s(*tdAlgorithm, algorithm, *extractor); 
 
-	std::cout << "Solving..." << std::flush;
-	std::unique_ptr<dynasp::IDynAspCountingSolution> solution(
-			static_cast<dynasp::IDynAspCountingSolution *>(s.solve(*instance)));
+	if(!opts.decompositionOnly)
+	{
+		std::cout << "Solving... " << std::flush;
+		std::unique_ptr<dynasp::IDynAspCountingSolution> solution(
+				static_cast<dynasp::IDynAspCountingSolution *>(
+					s.solve(*instance)));
 
-	std::cout << " done." << std::endl;
-	std::cout << "OPTIMAL WEIGHT: " << solution->optimalWeight() << std::endl;
-	std::cout << "SOLUTION COUNT: " << solution->count() << std::endl;
+		std::cout << " ...done." << std::endl;
+		std::cout << "OPTIMAL WEIGHT: " << solution->optimalWeight()
+			<< std::endl;
+		std::cout << "SOLUTION COUNT: " << solution->count() << std::endl;
+	}
+	else
+	{
+		std::cout << "Decomposing... " << std::endl;
+		std::size_t tw = s.calculateTreewidth(*instance);
+		std::cout << "TREEWIDTH: " << tw << std::endl;
+	}
 
 	if(opts.printBenchmarks)
 	{
 		std::cout << std::endl;
-		sharp::Benchmark::printBenchmarks(std::cout);
+		sharp::Benchmark::printBenchmarks(std::cout, opts.printMachineReadable);
 	}
 
 	return EXIT_SUCCESS;

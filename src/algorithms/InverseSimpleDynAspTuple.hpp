@@ -46,7 +46,6 @@ namespace dynasp
 		struct DYNASP_LOCAL DynAspCertificate
 		{
 			std::unordered_set<atom_t> atoms;
-			bool same; // certificate is the same as the model it belongs to
 
 			std::size_t hash() const;
 			bool operator==(const DynAspCertificate &other) const;

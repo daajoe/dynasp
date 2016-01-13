@@ -156,6 +156,7 @@ namespace dynasp
 #define DBG_RULMAP(...)
 #define DBG_CERT(...)
 #define DBG_SCERT(...)
+#define DBG_ICERT(...)
 #define DBG_RSCERT(...)
 
 #endif // DEBUG

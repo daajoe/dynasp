@@ -153,6 +153,7 @@ namespace dynasp
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &sharedTrueAtoms,
 			const atom_vector &sharedFalseAtoms,
+			const atom_vector &sharedReductFalseAtoms,
 			SatisfiabilityInfo ei1,
 			SatisfiabilityInfo ei2) const
 	{
@@ -171,6 +172,16 @@ namespace dynasp
 		if(headFalse) ei.seenHeadAtoms = head_.size();
 
 		unordered_map<atom_t, size_t>::const_iterator it;
+
+		for(const atom_t atom : sharedReductFalseAtoms)
+			if((it = negativeBody_.find(atom)) != negativeBody_.end())
+				ei.maxBodyWeight += it->second;
+			else if((it = positiveBody_.find(atom)) != positiveBody_.end())
+				ei.maxBodyWeight += it->second;
+			else if((!choiceRule_ || !headFalse)
+					&& head_.find(atom) != head_.end())
+				--ei.seenHeadAtoms;
+
 		for(const atom_t atom : sharedTrueAtoms)
 			if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.maxBodyWeight += it->second;

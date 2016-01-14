@@ -35,7 +35,7 @@ bm B-
 
 pword [1-9][0-9]*
 uword [0-9]+
-id -?[a-zA-Z][a-zA-Z0-9(),]*
+id -?[a-zA-Z][a-zA-Z0-9(),"_]*
 
 
 %{

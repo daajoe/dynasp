@@ -89,6 +89,7 @@ namespace dynasp
 				const TreeNodeInfo &info,
 				const atom_vector &sharedTrueAtoms,
 				const atom_vector &sharedFalseAtoms,
+				const atom_vector &sharedReductFalseAtoms,
 				const rule_vector &rules,
 				const atom_vector &leftTrueAtoms,
 				const atom_vector &leftFalseAtoms,

@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 	if(!instance.get())
 		exit(EXIT_PARSING_ERROR);
 
-	std::cout << "Initializiing solver..." << std::endl;
+	std::cout << "Initializing solver..." << std::endl;
 	std::unique_ptr<htd::ITreeDecompositionAlgorithm> tdAlgorithm(
 			htd::TreeDecompositionAlgorithmFactory::instance()
 			.getTreeDecompositionAlgorithm());

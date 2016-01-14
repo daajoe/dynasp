@@ -43,6 +43,7 @@ namespace dynasp
 		virtual SatisfiabilityInfo check(
 				const atom_vector &sharedTrueAtoms,
 				const atom_vector &sharedFalseAtoms,
+				const atom_vector &sharedReductFalseAtoms,
 				SatisfiabilityInfo establishedInfo1,
 				SatisfiabilityInfo establishedInfo2) const;
 

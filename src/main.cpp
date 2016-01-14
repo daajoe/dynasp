@@ -249,14 +249,19 @@ int main(int argc, char *argv[])
 
 	if(!opts.decompositionOnly)
 	{
-		std::cout << "Solving... " << std::flush;
+		std::cout << "Solving... " << std::endl;
 		std::unique_ptr<dynasp::IDynAspCountingSolution> solution(
 				static_cast<dynasp::IDynAspCountingSolution *>(
 					s.solve(*instance)));
 
-		std::cout << " ...done." << std::endl;
-		std::cout << "OPTIMAL WEIGHT: " << solution->optimalWeight()
-			<< std::endl;
+		std::cout << "done." << std::endl;
+
+		if(solution->count() != 0)
+			std::cout << "OPTIMAL WEIGHT: " << solution->optimalWeight()
+				<< std::endl;
+		else
+			std::cout << "OPTIMAL WEIGHT: N/A" << std::endl;
+
 		std::cout << "SOLUTION COUNT: " << solution->count() << std::endl;
 	}
 	else

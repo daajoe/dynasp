@@ -117,7 +117,7 @@ namespace dynasp
 				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
 			else if((it = negativeBody_.find(atom)) != negativeBody_.end()
 					&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
-				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
+				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // reduct
 			
 		for(const atom_t atom : newTrueAtoms)
 			if(!choiceRule_ && head_.find(atom) != head_.end())

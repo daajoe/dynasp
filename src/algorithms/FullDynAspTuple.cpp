@@ -95,7 +95,8 @@ namespace dynasp
 
 	bool FullDynAspTuple::isSolution() const
 	{
-		return certificates_.size() == 1 && certificates_.begin()->same;
+		return rules_.empty()
+			&& certificates_.size() == 1 && certificates_.begin()->same;
 	}
 
 	size_t FullDynAspTuple::solutionCount() const
@@ -380,7 +381,7 @@ namespace dynasp
 
 	IDynAspTuple *FullDynAspTuple::join(
 			const TreeNodeInfo &info,
-			const ConstCollection<vertex_t> baseVertices,
+			const vertex_container &baseVertices,
 			const vertex_container &joinVertices,
 			const IDynAspTuple &tuple,
 			const ConstCollection<vertex_t> tupleVertices) const
@@ -497,7 +498,6 @@ namespace dynasp
 					certTrueAtoms.push_back(atom);
 				}
 			if(skip) continue;
-
 
 			for(atom_t atom : baseVertices)
 				if(!info.instance.isAtom(atom)) continue;
@@ -667,7 +667,7 @@ namespace dynasp
 			}
 			else if(rules.find(rule) != rules.end())
 			{
-				continue; // if we have a join rule, which was already true
+				continue; // if we have a join rule which was already true
 			}
 			else if(leftIter != leftRules.end())
 			{

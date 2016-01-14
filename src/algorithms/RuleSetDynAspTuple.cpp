@@ -88,7 +88,8 @@ namespace dynasp
 
 	bool RuleSetDynAspTuple::isSolution() const
 	{
-		return certificates_.size() == 1 && certificates_.begin()->same;
+		return rules_.empty()
+			&& certificates_.size() == 1 && certificates_.begin()->same;
 	}
 
 	size_t RuleSetDynAspTuple::solutionCount() const
@@ -357,10 +358,10 @@ namespace dynasp
 
 	IDynAspTuple *RuleSetDynAspTuple::join(
 			const TreeNodeInfo &info,
-			const ConstCollection<vertex_t>,
+			const vertex_container &baseVertices,
 			const vertex_container &joinVertices,
 			const IDynAspTuple &tuple,
-			const ConstCollection<vertex_t>) const
+			const ConstCollection<vertex_t> tupleVertices) const
 	{
 		const RuleSetDynAspTuple &other =
 			static_cast<const RuleSetDynAspTuple &>(tuple);
@@ -375,7 +376,9 @@ namespace dynasp
 		DBG_RSCERT(other.certificates_);
 
 		atom_vector trueAtoms, falseAtoms;
-		RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
+		atom_vector leftTrueAtoms, leftFalseAtoms;
+		atom_vector rightTrueAtoms, rightFalseAtoms;
+
 
 		// check that atom assignment matches on the join atoms
 		for(atom_t atom : joinVertices)
@@ -383,29 +386,43 @@ namespace dynasp
 			else if(atoms_.find(atom) == atoms_.end())
 			{
 				if(other.atoms_.find(atom) != other.atoms_.end())
-				{
-					delete newTuple;
 					return nullptr;
-				}
 				falseAtoms.push_back(atom);
 			}
 			else
 			{
 				if(other.atoms_.find(atom) == other.atoms_.end())
-				{
-					delete newTuple;
 					return nullptr;
-				}
 				trueAtoms.push_back(atom);
 			}
+
+		for(atom_t atom : baseVertices)
+			if(!info.instance.isAtom(atom)) continue;
+			else if(atoms_.find(atom) != atoms_.end())
+				leftTrueAtoms.push_back(atom);
+			else
+				leftFalseAtoms.push_back(atom);
+
+		for(atom_t atom : tupleVertices)
+			if(!info.instance.isAtom(atom)) continue;
+			else if(other.atoms_.find(atom) != other.atoms_.end())
+				rightTrueAtoms.push_back(atom);
+			else
+				rightFalseAtoms.push_back(atom);
+
+		RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
 		
 		// check and join rules
 		if(!checkJoinRules(
-					info.instance,
-					trueAtoms,
-					falseAtoms,
-					info.rememberedRules,
+					info,
+					joinVertices,
+					leftTrueAtoms,
+					leftFalseAtoms,
+					atom_vector(0),
 					rules_,
+					rightTrueAtoms,
+					rightFalseAtoms,
+					atom_vector(0),
 					other.rules_,
 					newTuple->rules_))
 		{
@@ -425,8 +442,12 @@ namespace dynasp
 				falseAtoms);
 
 		// join certificates
-		//TODO: use something more intelligent than a nested loop join
 		atom_vector certTrueAtoms, certFalseAtoms;
+		atom_vector leftCertTrueAtoms, leftCertFalseAtoms, leftReductFalseAtoms;
+		atom_vector rightCertTrueAtoms, rightCertFalseAtoms,
+					rightReductFalseAtoms;
+
+		//TODO: use something more intelligent than a nested loop join
 		for(const DynAspCertificate &cert1 : certificates_)
 		for(const DynAspCertificate &cert2 : other.certificates_)
 		{
@@ -454,15 +475,44 @@ namespace dynasp
 				}
 			if(skip) continue;
 
+			for(atom_t atom : baseVertices)
+				if(!info.instance.isAtom(atom)) continue;
+				else if(atoms_.find(atom) != atoms_.end())
+				{
+					if(cert1.atoms.find(atom) != cert1.atoms.end())
+						leftCertTrueAtoms.push_back(atom);
+					else
+						leftReductFalseAtoms.push_back(atom);
+				}
+				else
+					leftCertFalseAtoms.push_back(atom);
+
+			for(atom_t atom : tupleVertices)
+				if(!info.instance.isAtom(atom)) continue;
+				else if(other.atoms_.find(atom) != other.atoms_.end())
+				{
+					if(cert2.atoms.find(atom) != cert2.atoms.end())
+						rightCertTrueAtoms.push_back(atom);
+					else
+						rightReductFalseAtoms.push_back(atom);
+				}
+				else
+					rightCertFalseAtoms.push_back(atom);
+
+
 			DynAspCertificate newCert;
 
 			// join and check rules
 			if(!checkJoinRules(
-						info.instance,
-						certTrueAtoms,
-						certFalseAtoms,
-						info.rememberedRules,
+						info,
+						joinVertices,
+						leftCertTrueAtoms,
+						leftCertFalseAtoms,
+						leftReductFalseAtoms,
 						cert1.rules,
+						rightCertTrueAtoms,
+						rightCertFalseAtoms,
+						rightReductFalseAtoms,
 						cert2.rules,
 						newCert.rules))
 			{
@@ -552,47 +602,61 @@ namespace dynasp
 	}
 
 	bool RuleSetDynAspTuple::checkJoinRules(
-			const IGroundAspInstance &instance,
-			const atom_vector &trueAtoms,
-			const atom_vector &falseAtoms,
-			const rule_vector &rules,
+			const TreeNodeInfo &info,
+			const rule_vector &joinRules,
+			const atom_vector &leftTrueAtoms,
+			const atom_vector &leftFalseAtoms,
+			const atom_vector &leftReductFalseAtoms,
 			const rule_set &leftRules,
+			const atom_vector &rightTrueAtoms,
+			const atom_vector &rightFalseAtoms,
+			const atom_vector &rightReductFalseAtoms,
 			const rule_set &rightRules,
 			rule_set &outputRules)
 	{
-		rule_set mergedRules(rules.size());
+		unordered_set<rule_t> rules;
+		for(rule_t rule : joinRules)
+			if(info.instance.isRule(rule)) //FIXME: do filtering outside
+				rules.insert(rule);
 
-		for(rule_t rule : rules)
+		for(rule_t rule : info.rememberedRules)
 		{
 			auto leftIter = leftRules.find(rule);
 			auto rightIter = rightRules.find(rule);
 
+			if(leftIter == leftRules.end() && rightIter == rightRules.end())
+				continue;
+
+			IGroundAspRule::SatisfiabilityInfo si;
+			const IGroundAspRule &ruleObject = info.instance.rule(rule);
+
 			if(leftIter != leftRules.end() && rightIter != rightRules.end())
 			{
-				IGroundAspRule::SatisfiabilityInfo si = 
-					instance.rule(rule).check(
-							trueAtoms,
-							falseAtoms,
-							atom_vector(0));
-
-				if(si.unsatisfied) return false;
-				if(si.satisfied) continue;
-
 				outputRules.insert(rule);
 			}
-			mergedRules.insert(rule);
-		}
+			else if(rules.find(rule) != rules.end())
+			{
+				continue; // if we have a join rule which was already true
+			}
+			else if(leftIter != leftRules.end())
+			{
+				si = ruleObject.check(
+						rightTrueAtoms,
+						rightFalseAtoms,
+						rightReductFalseAtoms);
+			}
+			else // rightIter != rightRules.end()
+			{
+				si = ruleObject.check(
+						leftTrueAtoms,
+						leftFalseAtoms,
+						leftReductFalseAtoms);
+			}
 
-		for(rule_t rule : leftRules)
-		{
-			if(mergedRules.find(rule) == mergedRules.end())
-				outputRules.insert(rule);
-		}
-		
-		for(rule_t rule : rightRules)
-		{
-			if(mergedRules.find(rule) == mergedRules.end())
-				outputRules.insert(rule);
+			if(si.unsatisfied) return false;
+			if(si.satisfied) continue;
+
+			outputRules.insert(rule);
 		}
 
 		return true;

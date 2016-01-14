@@ -101,6 +101,7 @@ namespace dynasp
 		
 		// contains vertices already joined together
 		unordered_set<vertex_t> joinBase;
+		vertex_container baseVertices, nextBaseVertices;
 		vertex_t child;
 
 		if(childCount != 0)
@@ -136,6 +137,11 @@ namespace dynasp
 
 				//FIXME: tree decomposition should supply this
 				nextJoinVertices->clear();
+				nextBaseVertices.clear();
+				nextBaseVertices.insert(
+						nextBaseVertices.end(),
+						joinBase.begin(),
+						joinBase.end());
 
 				for(auto i = nextBag.begin(); i != nextBag.end(); ++i)
 					if(!joinBase.insert(*i).second)
@@ -185,6 +191,7 @@ namespace dynasp
 				curr.insert(merged.begin(), merged.end());
 				prev.swap(curr);
 				swap(joinVertices, nextJoinVertices);
+				swap(baseVertices, nextBaseVertices);
 	
 				DBG(prev.size()); DBG(") ");
 				
@@ -195,7 +202,6 @@ namespace dynasp
 			
 
 			// elsewise, join our tuples to the current set
-			vertex_t prevChild = decomposition.child(node, childIndex - 1);
 			for(IDynAspTuple *tuple : merged)
 			{
 				size_t bucketIndex = prev.bucket(tuple);
@@ -205,7 +211,7 @@ namespace dynasp
 						 ++joinIter)
 					if(nullptr != (tmp = (*joinIter)->join(
 									info,
-									decomposition.bagContent(prevChild),
+									baseVertices,
 									*joinVertices,
 									*tuple,
 									decomposition.bagContent(child))))
@@ -222,6 +228,7 @@ namespace dynasp
 			// move current tuples to prev for next iteration
 			prev.swap(curr);
 			swap(joinVertices, nextJoinVertices);
+			swap(baseVertices, nextBaseVertices);
 
 			DBG(prev.size()); DBG(") ");
 

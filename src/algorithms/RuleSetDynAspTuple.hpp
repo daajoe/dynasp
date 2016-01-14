@@ -35,7 +35,7 @@ namespace dynasp
 
 		virtual IDynAspTuple *join(
 				const TreeNodeInfo &info,
-				const htd::ConstCollection<htd::vertex_t> baseVertices,
+				const htd::vertex_container &baseVertices,
 				const htd::vertex_container &joinVertices,
 				const IDynAspTuple &tuple,
 				const htd::ConstCollection<htd::vertex_t> tupleVertices) const;
@@ -83,11 +83,15 @@ namespace dynasp
 				rule_set &outputRules);
 
 		static bool checkJoinRules(
-				const IGroundAspInstance &instance,
-				const atom_vector &trueAtoms,
-				const atom_vector &falseAtoms,
+				const TreeNodeInfo &info,
 				const rule_vector &rules,
+				const atom_vector &leftTrueAtoms,
+				const atom_vector &leftFalseAtoms,
+				const atom_vector &leftReductFalseAtoms,
 				const rule_set &leftRules,
+				const atom_vector &rightTrueAtoms,
+				const atom_vector &rightFalseAtoms,
+				const atom_vector &rightReductFalseAtoms,
 				const rule_set &rightRules,
 				rule_set &outputRules);
 

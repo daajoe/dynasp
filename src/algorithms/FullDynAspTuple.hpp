@@ -35,7 +35,7 @@ namespace dynasp
 
 		virtual IDynAspTuple *join(
 				const TreeNodeInfo &info,
-				const htd::ConstCollection<htd::vertex_t> baseVertices,
+				const htd::vertex_container &baseVertices,
 				const htd::vertex_container &joinVertices,
 				const IDynAspTuple &tuple,
 				const htd::ConstCollection<htd::vertex_t> tupleVertices) const;

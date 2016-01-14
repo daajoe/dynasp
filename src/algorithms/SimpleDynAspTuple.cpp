@@ -315,7 +315,7 @@ namespace dynasp
 
 	IDynAspTuple *SimpleDynAspTuple::join(
 			const TreeNodeInfo &info,
-			const ConstCollection<vertex_t>,
+			const vertex_container &,
 			const vertex_container &joinVertices,
 			const IDynAspTuple &tuple,
 			const ConstCollection<vertex_t>) const

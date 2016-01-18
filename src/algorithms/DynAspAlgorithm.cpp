@@ -154,7 +154,7 @@ namespace dynasp
 			DBG("("); DBG(childTuples.size()); DBG(",");
 
 			unordered_set<IDynAspTuple *, IDynAspTuple::merge_hash>
-				merged(childTuples.size());
+				merged(childTuples.size()), currmerged;
 
 			// project out unneeded vertices
 			for(const ITuple &tuple : childTuples)
@@ -171,10 +171,9 @@ namespace dynasp
 
 				bool isIn = false;
 				for(auto mergeIter = merged.begin(bucketIndex);
-						 mergeIter != merged.end(bucketIndex);
+						 !isIn && mergeIter != merged.end(bucketIndex);
 						 ++mergeIter)
-					if(true == (isIn = (*mergeIter)->merge(*reducedTuple)))
-						break;
+					isIn = (*mergeIter)->merge(*reducedTuple);
 
 				if(!isIn) merged.insert(reducedTuple);
 			}
@@ -202,6 +201,7 @@ namespace dynasp
 			
 
 			// elsewise, join our tuples to the current set
+			currmerged.reserve(merged.size());
 			for(IDynAspTuple *tuple : merged)
 			{
 				size_t bucketIndex = prev.bucket(tuple);
@@ -215,7 +215,23 @@ namespace dynasp
 									*joinVertices,
 									*tuple,
 									decomposition.bagContent(child))))
+					{
+						size_t bucket = currmerged.bucket(tmp);
+						bool isIn = false;
+						for(auto mergeIter = currmerged.begin(bucket);
+								 !isIn && mergeIter != currmerged.end(bucket);
+								 ++mergeIter)
+							isIn = (*mergeIter)->merge(*tmp);
+
+						if(isIn)
+						{
+							delete tmp;
+							continue;
+						}
+
+						currmerged.insert(tmp);
 						curr.insert(tmp);
+					}
 
 				delete tuple;
 			}

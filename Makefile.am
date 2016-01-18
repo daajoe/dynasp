@@ -27,9 +27,13 @@ AM_CPPFLAGS = \
 	-fvisibility=hidden \
 	-fvisibility-inlines-hidden
 
+				
 ############################
 # LIBRARIES TO BUILD:	   #
 ############################
+
+# tell automake that some source files are generated
+BUILT_SOURCES = 
 
 # tell automake which libraries to build
 lib_LTLIBRARIES = libdynasp.la
@@ -38,15 +42,20 @@ lib_LTLIBRARIES = libdynasp.la
 # libdynasp.la build options #
 #----------------------------#
 
-BUILT_SOURCES = \
-	src/parsers/LParseBisonParser.cc \
+# list of generated files
+LIBDYNASP_GENERATED_HEADER = \
 	src/parsers/LParseBisonParser.hh \
-	src/parsers/LParseLexer.cc \
 	stack.hh \
 	position.hh \
 	location.hh
 
-CLEANFILES = $(BUILT_SOURCES)
+# list of generated source files
+LIBDYNASP_GENERATED_SOURCE = \
+	src/parsers/LParseBisonParser.cc \
+	src/parsers/LParseLexer.cc
+
+# add those to the automake variable for generated files
+BUILT_SOURCES += $(LIBDYNASP_GENERATED_HEADER) $(LIBDYNASP_GENERATED_SOURCE)
 
 # list the names of the public header files of the libdynasp.la library
 libdynasp_la_include_HEADERS = \
@@ -76,6 +85,8 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/DynAspAlgorithm.hpp
 
 # list all source code files for the libdynasp.la library
+# don't need to list the generated .cc files from bison and flex
+# since automake already knows about them, and adds them automatically
 libdynasp_la_SOURCES = \
 	src/assembly.cpp \
 	\
@@ -117,7 +128,9 @@ libdynasp_la_SOURCES = \
 	src/util/errorhandling.cpp \
 	src/util/errorhandling.hpp \
 	src/util/debug.cpp \
-	src/util/debug.hpp
+	src/util/debug.hpp \
+	\
+	$(LIBDYNASP_GENERATED_HEADER)
 
 # tell automake that the installation directory for public header files of the
 # libdynasp.la library should be a subfolder in the default ${includedir}
@@ -172,6 +185,9 @@ dist_noinst_SCRIPTS = autogen.sh
 # tell automake which files to package into distribution tarballs not involved
 # in rules or autoconf templates
 EXTRA_DIST = 
+
+# tell automake to clean the generated files on "make clean"
+CLEANFILES = $(BUILT_SOURCES)
 
 ############################
 # UNIT TESTS:              #

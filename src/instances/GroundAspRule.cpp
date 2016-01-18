@@ -35,7 +35,7 @@ namespace dynasp
 
 	void GroundAspRule::addPositiveBodyAtom(atom_t atom, size_t weight)
 	{
-		positiveBody_[atom] = weight;
+		positiveBody_[atom] += weight;
 		maximumBodyWeight_ += weight;
 		if(!minimumSet_) minimumBodyWeight_ += weight;
 	}
@@ -47,7 +47,7 @@ namespace dynasp
 
 	void GroundAspRule::addNegativeBodyAtom(atom_t atom, size_t weight)
 	{
-		negativeBody_[atom] = weight;
+		negativeBody_[atom] += weight;
 		maximumBodyWeight_ += weight;
 		if(!minimumSet_) minimumBodyWeight_ += weight;
 	}

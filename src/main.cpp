@@ -11,6 +11,7 @@
 #include <fstream>
 
 #include <cstdlib>
+#include <cstring>
 
 #ifdef HAVE_UNISTD_H 
 	#include <unistd.h>
@@ -26,10 +27,16 @@ namespace
 
 	struct DynAspOptions
 	{
+		enum DecompositionHeuristic
+		{
+			MINIMUM_FILL_EDGES = 0,
+			MAXIMUM_CARDINALITY_SEARCH
+		};
+
 		DynAspOptions(int argc, char *argv[])
 		{
 			int opt;
-			while((opt = getopt(argc, argv, "vhbds:c:")) != -1)
+			while((opt = getopt(argc, argv, "vhbds:c:t:")) != -1)
 				switch(opt)
 				{
 				case 'v':
@@ -42,6 +49,16 @@ namespace
 
 				case 'd':
 					this->decompositionOnly = true;
+					break;
+
+				case 't':
+					this->customTreeDecomposition = true;
+					if(!std::strcmp(optarg, "mf"))
+						this->heuristic = MINIMUM_FILL_EDGES;
+					else if(!std::strcmp(optarg, "mcs"))
+						this->heuristic = MAXIMUM_CARDINALITY_SEARCH;
+					else
+						this->error = true;
 					break;
 
 				case 'b':
@@ -113,6 +130,8 @@ namespace
 		bool printBenchmarks = false; // -b, --benchmark
 		bool printMachineReadable = false; // 2x -b, --benchmark
 		bool decompositionOnly = false; // -d, --decomp
+		bool customTreeDecomposition = false; // -t, --tree
+		DecompositionHeuristic heuristic = MINIMUM_FILL_EDGES;
 		bool useSeed = false; // -s, --seed
 		unsigned seed = 0;
 		bool readFromFile = false;
@@ -136,6 +155,12 @@ namespace
 			<< "  -v\t  output version information and exit" << std::endl
 			<< "  -h\t  display this help message and exit" << std::endl
 			<< "  -d\t  perform decomposition and print treewidth" << std::endl
+			<< "  -t ALG  use ALG for decomposition, where ALG is one of:"
+				<< std::endl
+			<< "\t    mcs: maximum cardinality search bucket elimination"
+				<< std::endl
+			<< "\t    mf:  minimum fill edge count bucket elimination (default)"
+				<< std::endl
 			<< "  -b\t  display timing information (use twice for CSV format)"
 				<< std::endl
 			<< "  -s NUM  set NUM as seed for the random number generator"
@@ -207,6 +232,25 @@ int main(int argc, char *argv[])
 	if(opts.useSeed)
 	{
 		std::srand(opts.seed);
+	}
+
+	if(opts.customTreeDecomposition)
+	{
+		htd::IOrderingAlgorithm *ct = nullptr;
+
+		switch(opts.heuristic)
+		{
+		case DynAspOptions::MAXIMUM_CARDINALITY_SEARCH:
+			ct = new htd::MaximumCardinalitySearchOrderingAlgorithm();
+			break;
+
+		case DynAspOptions::MINIMUM_FILL_EDGES:
+		default:
+			ct = new htd::MinFillOrderingAlgorithm();
+			break;
+		}
+
+		htd::OrderingAlgorithmFactory::instance().setConstructionTemplate(ct); 
 	}
 
 	if(opts.customConfiguration) dynasp::create::set(opts.configuration);

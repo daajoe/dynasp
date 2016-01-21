@@ -74,6 +74,8 @@ namespace dynasp
 			solutions_ += mergee.solutions_;
 		}
 
+		DBG("\t=>\t"); DBG_COLL(atoms_); DBG(" "); DBG_SCERT(certificates_);
+
 		return true;
 	}
 
@@ -430,6 +432,9 @@ namespace dynasp
 			certTrueAtoms.clear();
 			certFalseAtoms.clear();
 		}
+
+		DBG("\t=>\t"); DBG_COLL(newTuple->atoms_); DBG(" ");
+		DBG_SCERT(newTuple->certificates_);
 
 		return newTuple;
 	}

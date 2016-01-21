@@ -221,6 +221,17 @@ namespace dynasp
 						continue;
 					}
 
+					DynAspCertificate tempCert;
+					tempCert.atoms= newCert.atoms;
+					for(vertex_t vertex : info.introducedAtoms)
+						tempCert.atoms.erase(vertex);
+
+					if(certificates_.find(tempCert) != certificates_.end())
+					{
+						newTuple->certificates_.insert(std::move(newCert));
+						continue;
+					}
+
 					// check rules						
 					bool validCert = checkRules(
 							info.instance,

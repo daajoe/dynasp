@@ -90,6 +90,11 @@ namespace dynasp
 			solutions_ += mergee.solutions_;
 		}
 
+		DBG("\t=>\t"); DBG_COLL(atoms_); DBG("\t");
+		DBG_RULMAP(rules_); DBG("\t");
+		DBG_CERT(certificates_);
+
+
 		return true;
 	}
 
@@ -97,7 +102,7 @@ namespace dynasp
 	{
 		size_t reductModelCount = certificates_.size();
 		for(auto &cert : certificates_)
-			if(cert.same || cert.rules.empty())
+			if(cert.same || !cert.rules.empty())
 				--reductModelCount;
 
 		return rules_.empty()
@@ -480,6 +485,13 @@ namespace dynasp
 		for(const DynAspCertificate &cert1 : certificates_)
 		for(const DynAspCertificate &cert2 : other.certificates_)
 		{
+
+			DBG(std::endl); DBG("    cert ");
+			DBG_COLL(joinVertices); DBG("\t");
+			DBG_COLL(cert1.atoms); DBG("x"); DBG_COLL(cert2.atoms);
+			DBG("\t");
+			DBG_RULMAP(cert1.rules); DBG("x"); DBG_RULMAP(cert2.rules);
+
 			// check if join condition is fulfilled
 			bool skip = false;
 			for(atom_t atom : trueAtoms)
@@ -541,12 +553,19 @@ namespace dynasp
 			newCert.atoms.insert(cert2.atoms.begin(), cert2.atoms.end());
 			newCert.same = cert1.same && cert2.same;
 
+			DBG("\t>>\t"); DBG_COLL(newCert.atoms); DBG("\t");
+			DBG_RULMAP(newCert.rules);
+
 			newTuple->certificates_.insert(std::move(newCert));
 
 			// cleanup
 			certTrueAtoms.clear();
 			reductFalseAtoms.clear();
 		}
+
+		DBG("\t=>\t"); DBG_COLL(newTuple->atoms_); DBG("\t");
+		DBG_RULMAP(newTuple->rules_); DBG("\t");
+		DBG_CERT(newTuple->certificates_);
 
 		return newTuple;
 	}

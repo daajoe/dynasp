@@ -90,7 +90,7 @@ namespace dynasp
 	{
 		size_t reductModelCount = certificates_.size();
 		for(auto &cert : certificates_)
-			if(cert.same || cert.rules.empty())
+			if(cert.same || !cert.rules.empty())
 				--reductModelCount;
 
 		return rules_.empty()

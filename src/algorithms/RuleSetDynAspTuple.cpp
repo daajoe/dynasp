@@ -88,12 +88,13 @@ namespace dynasp
 
 	bool RuleSetDynAspTuple::isSolution() const
 	{
-		size_t reductModels = certificates_.size();
-		for(const DynAspCertificate &cert : certificates_)
-			if(!cert.rules.empty())
-				--reductModels;
+		size_t reductModelCount = certificates_.size();
+		for(auto &cert : certificates_)
+			if(cert.same || cert.rules.empty())
+				--reductModelCount;
 
-		return rules_.empty() && reductModels == 1;
+		return rules_.empty()
+			&& !reductModelCount;
 	}
 
 	size_t RuleSetDynAspTuple::solutionCount() const

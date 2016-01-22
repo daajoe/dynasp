@@ -95,7 +95,13 @@ namespace dynasp
 
 	bool FullDynAspTuple::isSolution() const
 	{
-		return certificates_.size() == 1 && certificates_.begin()->same;
+		size_t reductModelCount = certificates_.size();
+		for(auto &cert : certificates_)
+			if(cert.same || cert.rules.empty())
+				--reductModelCount;
+
+		return rules_.empty()
+			&& !reductModelCount;
 	}
 
 	size_t FullDynAspTuple::solutionCount() const

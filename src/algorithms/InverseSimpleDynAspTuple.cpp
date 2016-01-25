@@ -291,23 +291,39 @@ namespace dynasp
 		newTuple->weight_ = weight_;
 		newTuple->solutions_ = solutions_;
 
-		if(atoms_.size() != newTuple->atoms_.size())
-		{
-			DynAspCertificate tempCert;
-			tempCert.atoms = newTuple->atoms_;
-
-			if(certificates_.find(tempCert) == certificates_.end())
-			{
-				delete newTuple;
-				return nullptr;
-			}
-		}
-		
-		// do the same for the certificates
 		atom_vector removedAtoms;
 		for(atom_t atom : atoms_)
 			if(newTuple->atoms_.find(atom) == newTuple->atoms_.end())
 				removedAtoms.push_back(atom);
+
+		// if the new tuple contains itself as a certificate, return null.
+		if(atoms_.size() != newTuple->atoms_.size())
+		{
+			DynAspCertificate tempCert;
+			tempCert.atoms = newTuple->atoms_;
+			size_t tempIntro = removedAtoms.size();
+			for(size_t tempSubset = 0;
+					tempSubset < (1u << tempIntro);
+					++tempSubset)
+			{
+				for(size_t bit = 0; bit < tempIntro; ++bit)
+					if((tempSubset >> bit) & 1)
+						tempCert.atoms.insert(removedAtoms[bit]);
+
+				if(tempCert.atoms == atoms_) continue;
+				if(certificates_.find(tempCert) == certificates_.end())
+				{
+					delete newTuple;
+					return nullptr;
+				}
+
+				for(size_t bit = 0; bit < tempIntro; ++bit)
+					if((tempSubset >> bit) & 1)
+						tempCert.atoms.erase(removedAtoms[bit]);
+			}
+		}
+		
+		// do the same for the certificates
 		for(auto &cert : certificates_)
 		{
 			bool skip = false;
@@ -325,15 +341,13 @@ namespace dynasp
 					certSubset < (1u << certIntro);
 					++certSubset)
 			{
-				skip = false;
-				for(size_t bit = 0; !skip && bit < certIntro; ++bit)
-					if(atoms_.find(removedAtoms[bit]) == atoms_.end())
-						skip = true;
-					else if((certSubset >> bit) & 1)
+				for(size_t bit = 0; bit < certIntro; ++bit)
+					if((certSubset >> bit) & 1)
 						newCert.atoms.insert(removedAtoms[bit]);
 
-				invalidCert &= (skip || certificates_.find(newCert)
-									 != certificates_.end());
+				if(newCert.atoms == atoms_) continue;
+				invalidCert &= (certificates_.find(newCert)
+								!= certificates_.end());
 
 				for(size_t bit = 0; bit < certIntro; ++bit)
 					if((certSubset >> bit) & 1)

@@ -300,7 +300,7 @@ int main(int argc, char *argv[])
 
 		std::cout << "done." << std::endl;
 
-		if(solution->count() != 0)
+		if(solution->optimalWeight() != (size_t)-1)
 			std::cout << "OPTIMAL WEIGHT: " << solution->optimalWeight()
 				<< std::endl;
 		else

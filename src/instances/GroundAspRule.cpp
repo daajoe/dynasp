@@ -107,6 +107,11 @@ namespace dynasp
 	{
 		unordered_map<atom_t, size_t>::const_iterator it;
 
+		DBG("\n\trule{"); DBG(ei.minBodyWeight); DBG(".");
+		DBG(ei.maxBodyWeight); DBG("."); DBG(ei.seenHeadAtoms); DBG("} ");
+		DBG_COLL(newTrueAtoms); DBG_COLL(newFalseAtoms);
+		DBG_COLL(newReductFalseAtoms);
+
 		for(const atom_t atom : newReductFalseAtoms)
 			if(!choiceRule_ && head_.find(atom) != head_.end())
 				++ei.seenHeadAtoms;

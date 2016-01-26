@@ -408,6 +408,7 @@ namespace dynasp
 		DBG_CERT(certificates_); DBG("x");
 		DBG_CERT(other.certificates_);
 
+		atom_set joinSet(joinVertices.begin(), joinVertices.end());
 		atom_vector trueAtoms, falseAtoms;
 		atom_vector leftTrueAtoms, leftFalseAtoms;
 		atom_vector rightTrueAtoms, rightFalseAtoms;
@@ -430,6 +431,7 @@ namespace dynasp
 
 		for(atom_t atom : baseVertices)
 			if(!info.instance.isAtom(atom)) continue;
+			else if(joinSet.find(atom) != joinSet.end()) continue;
 			else if(atoms_.find(atom) != atoms_.end())
 				leftTrueAtoms.push_back(atom);
 			else
@@ -437,6 +439,7 @@ namespace dynasp
 
 		for(atom_t atom : tupleVertices)
 			if(!info.instance.isAtom(atom)) continue;
+			else if(joinSet.find(atom) != joinSet.end()) continue;
 			else if(other.atoms_.find(atom) != other.atoms_.end())
 				rightTrueAtoms.push_back(atom);
 			else
@@ -485,7 +488,6 @@ namespace dynasp
 		for(const DynAspCertificate &cert1 : certificates_)
 		for(const DynAspCertificate &cert2 : other.certificates_)
 		{
-
 			DBG(std::endl); DBG("    cert ");
 			DBG_COLL(joinVertices); DBG("\t");
 			DBG_COLL(cert1.atoms); DBG("x"); DBG_COLL(cert2.atoms);
@@ -561,6 +563,10 @@ namespace dynasp
 			// cleanup
 			certTrueAtoms.clear();
 			reductFalseAtoms.clear();
+			leftCertTrueAtoms.clear();
+			leftReductFalseAtoms.clear();
+			rightCertTrueAtoms.clear();
+			rightReductFalseAtoms.clear();
 		}
 
 		DBG("\t=>\t"); DBG_COLL(newTuple->atoms_); DBG("\t");
@@ -677,6 +683,18 @@ namespace dynasp
 			{
 				leftSi = leftIter->second;
 				rightSi = rightIter->second;
+
+				IGroundAspRule::SatisfiabilityInfo si = ruleObject.check(
+							sharedTrueAtoms,
+							sharedFalseAtoms,
+							sharedReductFalseAtoms,
+							leftSi,
+							rightSi);
+
+				if(si.unsatisfied) return false;
+				if(si.satisfied) continue;
+
+				outputRules[rule] = si;
 			}
 			else if(rules.find(rule) != rules.end())
 			{
@@ -685,31 +703,33 @@ namespace dynasp
 			else if(leftIter != leftRules.end())
 			{
 				leftSi = leftIter->second;
-				rightSi = ruleObject.check(
-						rightTrueAtoms,
-						rightFalseAtoms,
-						rightReductFalseAtoms);
+
+				IGroundAspRule::SatisfiabilityInfo si = ruleObject.check(
+							rightTrueAtoms,
+							rightFalseAtoms,
+							rightReductFalseAtoms,
+							leftSi);
+
+				if(si.unsatisfied) return false;
+				if(si.satisfied) continue;
+
+				outputRules[rule] = si;
 			}
 			else // rightIter != rightRules.end()
 			{
 				rightSi = rightIter->second;
-				leftSi = ruleObject.check(
-						leftTrueAtoms,
-						leftFalseAtoms,
-						leftReductFalseAtoms);
+
+				IGroundAspRule::SatisfiabilityInfo si = ruleObject.check(
+							leftTrueAtoms,
+							leftFalseAtoms,
+							leftReductFalseAtoms,
+							rightSi);
+
+				if(si.unsatisfied) return false;
+				if(si.satisfied) continue;
+
+				outputRules[rule] = si;
 			}
-			
-			IGroundAspRule::SatisfiabilityInfo si = ruleObject.check(
-						sharedTrueAtoms,
-						sharedFalseAtoms,
-						sharedReductFalseAtoms,
-						leftSi,
-						rightSi);
-
-			if(si.unsatisfied) return false;
-			if(si.satisfied) continue;
-
-			outputRules[rule] = si;
 		}
 
 		return true;

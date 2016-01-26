@@ -380,10 +380,10 @@ namespace dynasp
 		DBG_RSCERT(certificates_); DBG("x");
 		DBG_RSCERT(other.certificates_);
 
+		atom_set joinSet(joinVertices.begin(), joinVertices.end());
 		atom_vector trueAtoms, falseAtoms;
 		atom_vector leftTrueAtoms, leftFalseAtoms;
 		atom_vector rightTrueAtoms, rightFalseAtoms;
-
 
 		// check that atom assignment matches on the join atoms
 		for(atom_t atom : joinVertices)
@@ -403,6 +403,7 @@ namespace dynasp
 
 		for(atom_t atom : baseVertices)
 			if(!info.instance.isAtom(atom)) continue;
+			else if(joinSet.find(atom) != joinSet.end()) continue;
 			else if(atoms_.find(atom) != atoms_.end())
 				leftTrueAtoms.push_back(atom);
 			else
@@ -410,11 +411,11 @@ namespace dynasp
 
 		for(atom_t atom : tupleVertices)
 			if(!info.instance.isAtom(atom)) continue;
+			else if(joinSet.find(atom) != joinSet.end()) continue;
 			else if(other.atoms_.find(atom) != other.atoms_.end())
 				rightTrueAtoms.push_back(atom);
 			else
 				rightFalseAtoms.push_back(atom);
-
 		RuleSetDynAspTuple *newTuple = new RuleSetDynAspTuple(false);
 		
 		// check and join rules
@@ -447,27 +448,31 @@ namespace dynasp
 				falseAtoms);
 
 		// join certificates
-		atom_vector certTrueAtoms, certFalseAtoms;
-		atom_vector leftCertTrueAtoms, leftCertFalseAtoms, leftReductFalseAtoms;
-		atom_vector rightCertTrueAtoms, rightCertFalseAtoms,
-					rightReductFalseAtoms;
+		atom_vector certTrueAtoms, reductFalseAtoms;
+		atom_vector leftCertTrueAtoms, leftReductFalseAtoms;
+		atom_vector rightCertTrueAtoms, rightReductFalseAtoms;
 
 		//TODO: use something more intelligent than a nested loop join
 		for(const DynAspCertificate &cert1 : certificates_)
 		for(const DynAspCertificate &cert2 : other.certificates_)
 		{
+			DBG(std::endl); DBG("    cert ");
+			DBG_COLL(joinVertices); DBG("\t");
+			DBG_COLL(cert1.atoms); DBG("x"); DBG_COLL(cert2.atoms);
+			DBG("\t");
+			DBG_COLL(cert1.rules); DBG("x"); DBG_COLL(cert2.rules);
+
 			// check if join condition is fulfilled
 			bool skip = false;
-			for(atom_t atom : joinVertices)
-				if(!info.instance.isAtom(atom)) continue;
-				else if(cert1.atoms.find(atom) == cert1.atoms.end())
+			for(atom_t atom : trueAtoms)
+				if(cert1.atoms.find(atom) == cert1.atoms.end())
 				{
 					if(cert2.atoms.find(atom) != cert2.atoms.end())
 					{
 						skip = true;
 						break;
 					}
-					certFalseAtoms.push_back(atom);
+					reductFalseAtoms.push_back(atom);
 				}
 				else
 				{
@@ -480,30 +485,17 @@ namespace dynasp
 				}
 			if(skip) continue;
 
-			for(atom_t atom : baseVertices)
-				if(!info.instance.isAtom(atom)) continue;
-				else if(atoms_.find(atom) != atoms_.end())
-				{
-					if(cert1.atoms.find(atom) != cert1.atoms.end())
-						leftCertTrueAtoms.push_back(atom);
-					else
-						leftReductFalseAtoms.push_back(atom);
-				}
+			for(atom_t atom : leftTrueAtoms)
+				if(cert1.atoms.find(atom) != cert1.atoms.end())
+					leftCertTrueAtoms.push_back(atom);
 				else
-					leftCertFalseAtoms.push_back(atom);
+					leftReductFalseAtoms.push_back(atom);
 
-			for(atom_t atom : tupleVertices)
-				if(!info.instance.isAtom(atom)) continue;
-				else if(other.atoms_.find(atom) != other.atoms_.end())
-				{
-					if(cert2.atoms.find(atom) != cert2.atoms.end())
-						rightCertTrueAtoms.push_back(atom);
-					else
-						rightReductFalseAtoms.push_back(atom);
-				}
+			for(atom_t atom : rightTrueAtoms)
+				if(cert2.atoms.find(atom) != cert2.atoms.end())
+					rightCertTrueAtoms.push_back(atom);
 				else
-					rightCertFalseAtoms.push_back(atom);
-
+					rightReductFalseAtoms.push_back(atom);
 
 			DynAspCertificate newCert;
 
@@ -512,11 +504,11 @@ namespace dynasp
 						info,
 						joinVertices,
 						leftCertTrueAtoms,
-						leftCertFalseAtoms,
+						leftFalseAtoms,
 						leftReductFalseAtoms,
 						cert1.rules,
 						rightCertTrueAtoms,
-						rightCertFalseAtoms,
+						rightFalseAtoms,
 						rightReductFalseAtoms,
 						cert2.rules,
 						newCert.rules))
@@ -528,11 +520,18 @@ namespace dynasp
 			newCert.atoms.insert(cert2.atoms.begin(), cert2.atoms.end());
 			newCert.same = cert1.same && cert2.same;
 
+			DBG("\t>>\t"); DBG_COLL(newCert.atoms); DBG("\t");
+			DBG_COLL(newCert.rules);
+
 			newTuple->certificates_.insert(std::move(newCert));
 
 			// cleanup
 			certTrueAtoms.clear();
-			certFalseAtoms.clear();
+			reductFalseAtoms.clear();
+			leftCertTrueAtoms.clear();
+			leftReductFalseAtoms.clear();
+			rightCertTrueAtoms.clear();
+			rightReductFalseAtoms.clear();
 		}
 
 		return newTuple;

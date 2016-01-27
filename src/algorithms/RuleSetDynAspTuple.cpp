@@ -456,6 +456,14 @@ namespace dynasp
 		for(const DynAspCertificate &cert1 : certificates_)
 		for(const DynAspCertificate &cert2 : other.certificates_)
 		{
+			// cleanup
+			certTrueAtoms.clear();
+			reductFalseAtoms.clear();
+			leftCertTrueAtoms.clear();
+			leftReductFalseAtoms.clear();
+			rightCertTrueAtoms.clear();
+			rightReductFalseAtoms.clear();
+
 			DBG(std::endl); DBG("    cert ");
 			DBG_COLL(joinVertices); DBG("\t");
 			DBG_COLL(cert1.atoms); DBG("x"); DBG_COLL(cert2.atoms);
@@ -524,15 +532,19 @@ namespace dynasp
 			DBG_COLL(newCert.rules);
 
 			newTuple->certificates_.insert(std::move(newCert));
-
-			// cleanup
-			certTrueAtoms.clear();
-			reductFalseAtoms.clear();
-			leftCertTrueAtoms.clear();
-			leftReductFalseAtoms.clear();
-			rightCertTrueAtoms.clear();
-			rightReductFalseAtoms.clear();
 		}
+		
+		// cleanup
+		certTrueAtoms.clear();
+		reductFalseAtoms.clear();
+		leftCertTrueAtoms.clear();
+		leftReductFalseAtoms.clear();
+		rightCertTrueAtoms.clear();
+		rightReductFalseAtoms.clear();
+
+		DBG("\t=>\t"); DBG_COLL(newTuple->atoms_); DBG("\t");
+		DBG_COLL(newTuple->rules_); DBG("\t");
+		DBG_RSCERT(newTuple->certificates_);
 
 		return newTuple;
 	}
@@ -637,6 +649,7 @@ namespace dynasp
 			if(leftIter != leftRules.end() && rightIter != rightRules.end())
 			{
 				outputRules.insert(rule);
+				continue;
 			}
 			else if(rules.find(rule) != rules.end())
 			{

@@ -5,19 +5,21 @@
 
 #include <dynasp/IDynAspCountingSolution.hpp>
 
+#include <gmpxx.h>
+
 namespace dynasp
 {
 	class DYNASP_LOCAL DynAspCountingSolution : public IDynAspCountingSolution
 	{
 	public:
-		DynAspCountingSolution(std::size_t count, std::size_t optimalWeight);
+		DynAspCountingSolution(mpz_class count, std::size_t optimalWeight);
 		virtual ~DynAspCountingSolution();
 
-		virtual std::size_t count() const;
+		virtual mpz_class count() const;
 		virtual std::size_t optimalWeight() const;
 
 	private:
-		std::size_t count_;
+		mpz_class count_;
 		std::size_t optimalWeight_;
 
 	}; // class DynAspCountingSolution

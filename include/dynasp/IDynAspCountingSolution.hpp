@@ -5,6 +5,8 @@
 
 #include <sharp/main>
 
+#include <gmpxx.h>
+
 #include <cstddef>
 
 namespace dynasp
@@ -18,7 +20,7 @@ namespace dynasp
 	public:
 		virtual ~IDynAspCountingSolution() = 0;
 
-		virtual std::size_t count() const = 0;
+		virtual mpz_class count() const = 0;
 		virtual std::size_t optimalWeight() const = 0;
 
 	}; // class IDynAspCountingSolution

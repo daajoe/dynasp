@@ -84,7 +84,7 @@ namespace dynasp
 		return certificates_.size() == 1 && certificates_.begin()->same;
 	}
 
-	size_t SimpleDynAspTuple::solutionCount() const
+	mpz_class SimpleDynAspTuple::solutionCount() const
 	{
 		return solutions_;
 	}
@@ -129,7 +129,8 @@ namespace dynasp
 
 		h.add(this->mergeHash());
 		h.add(weight_);
-		h.add(solutions_);
+		//FIXME: add support for mpz_class
+		//h.add(solutions_);
 
 		return h.get();
 	}

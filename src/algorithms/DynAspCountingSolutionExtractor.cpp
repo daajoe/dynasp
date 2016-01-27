@@ -27,7 +27,7 @@ namespace dynasp
 			const INodeTupleSetMap &tuples,
 			const IInstance &) const
 	{
-		size_t currentCount = 0;
+		mpz_class currentCount = 0;
 		size_t currentOptimalWeight = (size_t)-1; // maximal value of size_t
 
 		for(const ITuple &entry : tuples[node])

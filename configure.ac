@@ -18,6 +18,8 @@ AC_CONFIG_AUX_DIR([build-aux])			# folder for auxilliary files
 #   subdir-objects:
 #	tell automake to create object files in same directory as the source
 AM_INIT_AUTOMAKE([1.11 dist-xz subdir-objects])
+#   tell automake not to be verbose when compiling
+AM_SILENT_RULES([yes])
 
 # enable libtool to build libraries
 ###################################
@@ -97,7 +99,10 @@ AC_SEARCH_LIBS([sharp_version], [sharp],
 AS_IF([test "x$with_gmp" = xyes],
       [AC_SEARCH_LIBS([__gmpz_init], [gmp],
 		      [GMP_LIBS=$ac_cv_search___gmpz_init],
-		      [AC_MSG_FAILURE([libgmp not found])])])
+		      [AC_MSG_FAILURE([libgmp not found])])
+	   AC_SEARCH_LIBS([_ZlsRSoPK12__mpz_struct], [gmpxx],
+		      [GMP_LIBS=$ac_cv_search__ZlsRSoPK12__mpz_struct],
+		      [AC_MSG_FAILURE([libgmpxx not found])])])
 
 # check for pthread (needed for googletest)
 ACX_PTHREAD([], [AC_MSG_FAILURE([POSIX thread support not found])])

@@ -21,7 +21,7 @@ namespace dynasp
 		virtual bool merge(const IDynAspTuple &tuple);
 
 		virtual bool isSolution() const;
-		virtual std::size_t solutionCount() const;
+		virtual mpz_class solutionCount() const;
 		virtual std::size_t solutionWeight() const;
 		virtual std::size_t joinHash(const atom_vector &atoms) const;
 		virtual std::size_t mergeHash() const;
@@ -64,7 +64,7 @@ namespace dynasp
 			rule_map;
 
 		std::size_t weight_;
-		std::size_t solutions_;
+		mpz_class solutions_;
 		atom_set atoms_;
 		rule_map rules_; // rules for which we don't know yet (sat/unsat)
 		certificate_set certificates_;

@@ -109,7 +109,7 @@ namespace dynasp
 			&& !reductModelCount;
 	}
 
-	size_t FullDynAspTuple::solutionCount() const
+	mpz_class FullDynAspTuple::solutionCount() const
 	{
 		return solutions_;
 	}
@@ -166,7 +166,8 @@ namespace dynasp
 
 		h.add(this->mergeHash());
 		h.add(weight_);
-		h.add(solutions_);
+		//FIXME: support mpz_class
+		//h.add(solutions_);
 
 		return h.get();
 	}

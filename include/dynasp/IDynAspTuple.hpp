@@ -11,6 +11,8 @@
 
 #include <htd/main.hpp>
 
+#include <gmpxx.h>
+
 #include <cstddef>
 
 namespace dynasp
@@ -27,7 +29,7 @@ namespace dynasp
 		virtual bool merge(const IDynAspTuple &tuple) = 0;
 
 		virtual bool isSolution() const = 0;
-		virtual std::size_t solutionCount() const = 0;
+		virtual mpz_class solutionCount() const = 0;
 		virtual std::size_t solutionWeight() const = 0;
 		virtual std::size_t joinHash(const atom_vector &atoms) const = 0;
 		virtual std::size_t mergeHash() const = 0;

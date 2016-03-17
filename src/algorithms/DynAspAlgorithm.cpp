@@ -266,4 +266,9 @@ namespace dynasp
 		DBG(outputTuples.size()); DBG(std::endl);
 	}
 
+	bool DynAspAlgorithm::needAllTupleSets() const
+	{
+		return false;
+	}
+
 } // namespace dynasp

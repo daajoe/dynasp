@@ -42,7 +42,7 @@ lib_LTLIBRARIES = libdynasp.la
 # libdynasp.la build options #
 #----------------------------#
 
-# list of generated files
+# list of generated header files
 LIBDYNASP_GENERATED_HEADER = \
 	src/parsers/LParseBisonParser.hh \
 	stack.hh \

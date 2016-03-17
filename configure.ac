@@ -8,9 +8,9 @@ AC_PREREQ([2.65])				# minimum autoconf version
 # supply the name of the project, version number, and contact email
 AC_INIT([dynasp], [2.0], [morak@dbai.tuwien.ac.at])
 
-AC_CONFIG_SRCDIR([src/main.cpp]) 		# source directory
+AC_CONFIG_SRCDIR([src/assembly.cpp]) 	# source directory
 AC_CONFIG_HEADERS([config.h])			# name of generated header
-AC_CONFIG_MACRO_DIR([m4])			# folder for macros
+AC_CONFIG_MACRO_DIR([m4])				# folder for autoconf macros
 AC_CONFIG_AUX_DIR([build-aux])			# folder for auxilliary files
 
 # initialize automake with the following options:

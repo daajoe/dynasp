@@ -26,6 +26,8 @@ namespace dynasp
 				const sharp::IInstance &instance,
 				sharp::ITupleSet &outputTuples) const;
 
+		virtual bool needAllTupleSets() const;
+
 	private:
 		struct Impl;
 		Impl * const impl;

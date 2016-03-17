@@ -289,15 +289,19 @@ int main(int argc, char *argv[])
 	dynasp::DynAspAlgorithm algorithm;
 	std::unique_ptr<dynasp::IDynAspCountingSolutionExtractor> extractor(
 			dynasp::create::countingSolutionExtractor());
-	sharp::IterativeTreeTupleSolver s(*tdAlgorithm, algorithm, *extractor); 
+	std::unique_ptr<sharp::ITreeSolver> solver(
+			sharp::create::treeSolver(*tdAlgorithm, algorithm, *extractor));
+
+	std::cout << "Decomposing..." << std::endl;
+	std::unique_ptr<htd::ITreeDecomposition> td(solver->decompose(*instance));
+	std::cout << "TREEWIDTH: " << td->maximumBagSize() - 1 << std::endl;
 
 	if(!opts.decompositionOnly)
 	{
-		std::cout << "Solving... " << std::endl;
+		std::cout << "Solving... ";
 		std::unique_ptr<dynasp::IDynAspCountingSolution> solution(
 				static_cast<dynasp::IDynAspCountingSolution *>(
-					s.solve(*instance)));
-
+					solver->solve(*instance, *td)));
 		std::cout << "done." << std::endl;
 
 		if(solution->optimalWeight() != (size_t)-1)
@@ -307,12 +311,6 @@ int main(int argc, char *argv[])
 			std::cout << "OPTIMAL WEIGHT: N/A" << std::endl;
 
 		std::cout << "SOLUTION COUNT: " << solution->count() << std::endl;
-	}
-	else
-	{
-		std::cout << "Decomposing... " << std::endl;
-		std::size_t tw = s.calculateTreewidth(*instance);
-		std::cout << "TREEWIDTH: " << tw << std::endl;
 	}
 
 	if(opts.printBenchmarks)

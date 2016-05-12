@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <csignal>
 
 #ifdef HAVE_UNISTD_H 
 	#include <unistd.h>
@@ -205,6 +206,22 @@ namespace
 	}
 }
 
+void printBenchmarks(int signal)
+{
+	std::cout << std::endl;
+	sharp::Benchmark::printBenchmarks(std::cout, false);
+
+	exit(signal);
+}
+
+void printBenchmarksMachineReadable(int signal)
+{
+	std::cout << std::endl;
+	sharp::Benchmark::printBenchmarks(std::cout, true);
+
+	exit(signal);
+}
+
 int main(int argc, char *argv[])
 {
 	sharp::Benchmark::registerTimestamp("program start");
@@ -227,6 +244,25 @@ int main(int argc, char *argv[])
 	{
 		printVersion();
 		exit(EXIT_SUCCESS);
+	}
+
+	if(opts.printBenchmarks && opts.printMachineReadable)
+	{
+		signal(SIGABRT, printBenchmarksMachineReadable);
+		signal(SIGFPE, printBenchmarksMachineReadable);
+		signal(SIGILL, printBenchmarksMachineReadable);
+		signal(SIGINT, printBenchmarksMachineReadable);
+		signal(SIGSEGV, printBenchmarksMachineReadable);
+		signal(SIGTERM, printBenchmarksMachineReadable);
+	}
+	else if(opts.printBenchmarks)
+	{
+		signal(SIGABRT, printBenchmarks);
+		signal(SIGFPE, printBenchmarks);
+		signal(SIGILL, printBenchmarks);
+		signal(SIGINT, printBenchmarks);
+		signal(SIGSEGV, printBenchmarks);
+		signal(SIGTERM, printBenchmarks);
 	}
 
 	if(opts.useSeed)
@@ -298,7 +334,7 @@ int main(int argc, char *argv[])
 
 	if(!opts.decompositionOnly)
 	{
-		std::cout << "Solving... ";
+		std::cout << "Solving... " << std::flush;
 		std::unique_ptr<dynasp::IDynAspCountingSolution> solution(
 				static_cast<dynasp::IDynAspCountingSolution *>(
 					solver->solve(*instance, *td)));

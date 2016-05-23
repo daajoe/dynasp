@@ -38,7 +38,7 @@ namespace dynasp
 				const htd::vertex_container &baseVertices,
 				const htd::vertex_container &joinVertices,
 				const IDynAspTuple &tuple,
-				const htd::ConstCollection<htd::vertex_t> tupleVertices) const;
+				const std::vector<htd::vertex_t> &tupleVertices) const;
 
 		virtual bool operator==(const ITuple &other) const;
 

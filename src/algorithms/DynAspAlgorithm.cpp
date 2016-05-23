@@ -106,9 +106,9 @@ namespace dynasp
 
 		if(childCount != 0)
 		{
-			child = decomposition.child(node, 0);
+			child = decomposition.childAtPosition(node, 0);
 
-			const ConstCollection<vertex_t> childBag =
+			const vector<vertex_t> &childBag =
 				decomposition.bagContent(child);
 
 			for(auto i = childBag.begin(); i != childBag.end(); ++i)
@@ -126,13 +126,13 @@ namespace dynasp
 		if(childCount == 0) prev.insert(create::tuple(true));
 		else for(size_t childIndex = 0; childIndex < childCount; ++childIndex)
 		{
-			child = decomposition.child(node, childIndex);
+			child = decomposition.childAtPosition(node, childIndex);
 			vertex_t nextChild;
 
 			if(childIndex + 1 < childCount)
 			{
-				nextChild = decomposition.child(node, childIndex + 1);
-				const ConstCollection<vertex_t> nextBag =
+				nextChild = decomposition.childAtPosition(node, childIndex + 1);
+				const vector<vertex_t> &nextBag =
 					decomposition.bagContent(nextChild);
 
 				//FIXME: tree decomposition should supply this

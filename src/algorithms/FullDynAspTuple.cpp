@@ -10,7 +10,6 @@
 namespace dynasp
 {
 	using htd::vertex_t;
-	using htd::ConstCollection;
 	using htd::vertex_container;
 
 	using sharp::Hash;
@@ -18,6 +17,7 @@ namespace dynasp
 	using std::size_t;
 	using std::unordered_set;
 	using std::stack;
+	using std::vector;
 
 	size_t FullDynAspTuple::DynAspCertificate::hash() const
 	{
@@ -395,7 +395,7 @@ namespace dynasp
 			const vertex_container &baseVertices,
 			const vertex_container &joinVertices,
 			const IDynAspTuple &tuple,
-			const ConstCollection<vertex_t> tupleVertices) const
+			const vector<vertex_t> &tupleVertices) const
 	{
 		const FullDynAspTuple &other =
 			static_cast<const FullDynAspTuple &>(tuple);

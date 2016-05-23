@@ -45,7 +45,7 @@ namespace dynasp
 				const htd::vertex_container &baseVertices,
 				const htd::vertex_container &joinVertices,
 				const IDynAspTuple &tuple,
-				const htd::ConstCollection<htd::vertex_t> tupleVertices) const = 0;
+				const std::vector<htd::vertex_t> &tupleVertices) const = 0;
 
 		//TODO: move this to cpp file(s)
 		struct merge_hash

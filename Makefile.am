@@ -178,8 +178,8 @@ dynasp_SOURCES = \
 # DISTRIBUTION OPTIONS:	   #
 ############################
 
-# tell automake that the files after the "=" should not be installed into a
-# distribution tarball of the library.
+# tell automake about scripts that should be distributed in the tarball, but
+# not installed on "make install"
 dist_noinst_SCRIPTS = autogen.sh
 
 # tell automake which files to package into distribution tarballs not involved

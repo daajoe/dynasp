@@ -17,7 +17,7 @@ AC_CONFIG_AUX_DIR([build-aux])			# folder for auxilliary files
 #################################################
 #   subdir-objects:
 #	tell automake to create object files in same directory as the source
-AM_INIT_AUTOMAKE([1.11 dist-xz subdir-objects])
+AM_INIT_AUTOMAKE([1.14 subdir-objects])
 #   tell automake not to be verbose when compiling
 AM_SILENT_RULES([yes])
 

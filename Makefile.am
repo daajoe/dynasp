@@ -27,13 +27,14 @@ AM_CPPFLAGS = \
 	-fvisibility=hidden \
 	-fvisibility-inlines-hidden
 
+# initialize variables
+EXTRA_DIST =
+CLEANFILES =
+BUILT_SOURCES = 
 				
 ############################
 # LIBRARIES TO BUILD:	   #
 ############################
-
-# tell automake that some source files are generated
-BUILT_SOURCES = 
 
 # tell automake which libraries to build
 lib_LTLIBRARIES = libdynasp.la
@@ -55,7 +56,12 @@ LIBDYNASP_GENERATED_SOURCE = \
 	src/parsers/LParseLexer.cc
 
 # add those to the automake variable for generated files
-BUILT_SOURCES += $(LIBDYNASP_GENERATED_HEADER) $(LIBDYNASP_GENERATED_SOURCE)
+BUILT_SOURCES += $(LIBDYNASP_GENERATED_SOURCE)
+
+# tell automake to clean up the generated headers on 'make clean'
+# and to distribute the headers on 'make dist'
+CLEANFILES += $(LIBDYNASP_GENERATED_HEADER)
+EXTRA_DIST += $(LIBDYNASP_GENERATED_HEADER)
 
 # list the names of the public header files of the libdynasp.la library
 libdynasp_la_include_HEADERS = \
@@ -128,9 +134,7 @@ libdynasp_la_SOURCES = \
 	src/util/errorhandling.cpp \
 	src/util/errorhandling.hpp \
 	src/util/debug.cpp \
-	src/util/debug.hpp \
-	\
-	$(LIBDYNASP_GENERATED_HEADER)
+	src/util/debug.hpp
 
 # tell automake that the installation directory for public header files of the
 # libdynasp.la library should be a subfolder in the default ${includedir}
@@ -182,12 +186,8 @@ dynasp_SOURCES = \
 # not installed on "make install"
 dist_noinst_SCRIPTS = autogen.sh
 
-# tell automake which files to package into distribution tarballs not involved
-# in rules or autoconf templates
-EXTRA_DIST = 
-
 # tell automake to clean the generated files on "make clean"
-CLEANFILES = $(BUILT_SOURCES)
+CLEANFILES += $(BUILT_SOURCES)
 
 ############################
 # UNIT TESTS:              #

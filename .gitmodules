@@ -1,3 +1,6 @@
 [submodule "sharp"]
 	path = sharp
 	url = git@github.com:daajoe/sharp.git
+[submodule "htd"]
+	path = htd
+	url = git@github.com:mabseher/htd.git

@@ -36,7 +36,7 @@ AM_CPPFLAGS = \
 BUILT_SOURCES = 
 
 # tell automake which libraries to build
-lib_LTLIBRARIES = libdynasp_old.la
+lib_LTLIBRARIES = libdynasp.la
 
 #----------------------------#
 # libdynasp.la build options #
@@ -58,7 +58,7 @@ LIBDYNASP_GENERATED_SOURCE = \
 BUILT_SOURCES += $(LIBDYNASP_GENERATED_HEADER) $(LIBDYNASP_GENERATED_SOURCE)
 
 # list the names of the public header files of the libdynasp.la library
-libdynasp_old_la_include_HEADERS = \
+libdynasp_la_include_HEADERS = \
 	include/dynasp/main \
 	include/dynasp/global \
 	\
@@ -87,7 +87,7 @@ libdynasp_old_la_include_HEADERS = \
 # list all source code files for the libdynasp.la library
 # don't need to list the generated .cc files from bison and flex
 # since automake already knows about them, and adds them automatically
-libdynasp_old_la_SOURCES = \
+libdynasp_la_SOURCES = \
 	src/assembly.cpp \
 	\
 	src/create.cpp \
@@ -134,7 +134,7 @@ libdynasp_old_la_SOURCES = \
 
 # tell automake that the installation directory for public header files of the
 # libdynasp.la library should be a subfolder in the default ${includedir}
-libdynasp_old_la_includedir = ${includedir}/dynasp
+libdynasp_la_includedir = ${includedir}/dynasp
 
 # tell libtool to pass certain LDFLAGS to the compiler when building libsharp.la
 #
@@ -154,24 +154,24 @@ libdynasp_old_la_includedir = ${includedir}/dynasp
 #       0 if there is a backwards-compatibility breaking change, otherwise
 #       increase by 1 if CURRENT was increased by one.
 #
-libdynasp_old_la_LDFLAGS = -version-info 0:0:0
+libdynasp_la_LDFLAGS = -version-info 0:0:0
 
 ############################
 # PROGRAMS TO BUILD:	   #
 ############################
 
 # Link the main library (libdynasp.la) to all programs.
-LDADD = libdynasp_old.la
+LDADD = libdynasp.la
 
 # tell automake which programs to build
-bin_PROGRAMS = dynasp_old
+bin_PROGRAMS = dynasp
 
 #----------------------#
 # dynasp build options #
 #----------------------#
 
 # list all source code files for the dynasp program
-dynasp_old_SOURCES = \
+dynasp_SOURCES = \
 	src/main.cpp
 
 ############################

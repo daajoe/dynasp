@@ -37,9 +37,18 @@ namespace
 		DynAspOptions(int argc, char *argv[])
 		{
 			int opt;
-			while((opt = getopt(argc, argv, "vhbds:c:t:")) != -1)
+			while((opt = getopt(argc, argv, "onvhbds:c:t:l:")) != -1)
 				switch(opt)
 				{
+				case 'o':
+					this->tdopt = true;
+					break;
+				case 'n':
+					this->weak = false;
+					break;
+				case 'l':
+					this->children = (unsigned)strtol(optarg, NULL, 10);
+					break;
 				case 'v':
 					this->displayVersion = true;
 					break;
@@ -134,7 +143,9 @@ namespace
 		bool customTreeDecomposition = false; // -t, --tree
 		DecompositionHeuristic heuristic = MINIMUM_FILL_EDGES;
 		bool useSeed = false; // -s, --seed
-		unsigned seed = 0;
+		bool weak = true; // -s, --seed
+		bool tdopt = false; // -s, --seed
+		unsigned seed = 0, children = 3;
 		bool readFromFile = false;
 		char *fileToRead = nullptr;
 		bool customConfiguration = false; // -c <config>, --config=<config>
@@ -329,7 +340,7 @@ int main(int argc, char *argv[])
 			sharp::create::treeSolver(*tdAlgorithm, algorithm, *extractor));
 
 	std::cout << "Decomposing..." << std::endl;
-	std::unique_ptr<htd::ITreeDecomposition> td(solver->decompose(*instance));
+	std::unique_ptr<htd::ITreeDecomposition> td(solver->decompose(*instance, opts.weak, opts.children, opts.tdopt));
 	std::cout << "TREEWIDTH: " << td->maximumBagSize() - 1 << std::endl;
 
 	if(!opts.decompositionOnly)

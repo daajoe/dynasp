@@ -43,7 +43,12 @@ namespace dynasp
 	SimpleDynAspTuple::SimpleDynAspTuple(bool leaf)
 		: weight_(0), solutions_(1)
 	{
-		if(leaf) certificates_.insert({ { }, true });
+		if (leaf) 
+		{
+			DynAspCertificate c;
+			c.same = true;
+			certificates_.insert(std::move(c));
+		}
 	}
 
 	SimpleDynAspTuple::~SimpleDynAspTuple() { }

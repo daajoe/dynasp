@@ -22,7 +22,7 @@ namespace dynasp
 		virtual void evaluateNode(
 				htd::vertex_t node,
 				const htd::ITreeDecomposition &decomposition,
-				const sharp::INodeTupleSetMap &tuples,
+				sharp::INodeTupleSetMap &tuples,
 				const sharp::IInstance &instance,
 				sharp::ITupleSet &outputTuples) const;
 

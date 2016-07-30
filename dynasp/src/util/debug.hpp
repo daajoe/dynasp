@@ -1,6 +1,7 @@
 #ifndef DYNASP_UTIL_DEBUG_H_
 #define DYNASP_UTIL_DEBUG_H_
 
+//#define DEBUG
 #ifdef DEBUG
 
 #include <iostream>

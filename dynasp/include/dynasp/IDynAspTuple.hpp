@@ -15,6 +15,10 @@
 
 #include <cstddef>
 
+
+namespace htd {
+typedef std::vector<htd::vertex_t> vertex_container; }
+
 namespace dynasp
 {
 

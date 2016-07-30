@@ -50,7 +50,7 @@ namespace dynasp
 	void DynAspAlgorithm::evaluateNode(
 			vertex_t node,
 			const ITreeDecomposition &decomposition,
-			const INodeTupleSetMap &tuples,
+			INodeTupleSetMap &tuples,
 			const IInstance &instance,
 			ITupleSet &outputTuples) const
 	{
@@ -63,9 +63,9 @@ namespace dynasp
 			vertex_container()
 		};
 
-		const ConstCollection<vertex_t> remembered =
+		const htd::ConstCollection<vertex_t> remembered =
 			decomposition.rememberedVertices(node);
-		const ConstCollection<vertex_t> introduced =
+		const htd::ConstCollection<vertex_t> introduced =
 			decomposition.introducedVertices(node);
 
 		for(auto i = remembered.begin(); i!= remembered.end(); ++i)

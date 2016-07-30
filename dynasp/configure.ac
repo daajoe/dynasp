@@ -17,7 +17,7 @@ AC_CONFIG_AUX_DIR([build-aux])			# folder for auxilliary files
 #################################################
 #   subdir-objects:
 #	tell automake to create object files in same directory as the source
-AM_INIT_AUTOMAKE([1.14 subdir-objects])
+AM_INIT_AUTOMAKE([1.11 dist-xz subdir-objects])
 #   tell automake not to be verbose when compiling
 AM_SILENT_RULES([yes])
 
@@ -87,7 +87,8 @@ AS_IF([test "x$with_gmp" = xyes],
 AC_SEARCH_LIBS([htd_version], [htd],
 	        [HTD_LIBS=$ac_cv_search_htd_version],
 	        [AC_MSG_FAILURE([libhtd not found])])
-
+#LDADD=/home/jfichte/.local/lib/libsharp.so
+#LDADD=/home/jfichte/.local/lib/libhtd.so
 # check for htd library
 #TODO: check for "none required" output of AC_SEARCH_LIBS
 AC_SEARCH_LIBS([sharp_version], [sharp],

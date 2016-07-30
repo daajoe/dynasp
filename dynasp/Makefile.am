@@ -27,17 +27,16 @@ AM_CPPFLAGS = \
 	-fvisibility=hidden \
 	-fvisibility-inlines-hidden
 
-# initialize variables
-EXTRA_DIST =
-CLEANFILES =
-BUILT_SOURCES = 
 				
 ############################
 # LIBRARIES TO BUILD:	   #
 ############################
 
+# tell automake that some source files are generated
+BUILT_SOURCES = 
+
 # tell automake which libraries to build
-lib_LTLIBRARIES = libdynasp.la
+lib_LTLIBRARIES = libdynasp_old.la
 
 #----------------------------#
 # libdynasp.la build options #
@@ -56,15 +55,10 @@ LIBDYNASP_GENERATED_SOURCE = \
 	src/parsers/LParseLexer.cc
 
 # add those to the automake variable for generated files
-BUILT_SOURCES += $(LIBDYNASP_GENERATED_SOURCE)
-
-# tell automake to clean up the generated headers on 'make clean'
-# and to distribute the headers on 'make dist'
-CLEANFILES += $(LIBDYNASP_GENERATED_HEADER)
-EXTRA_DIST += $(LIBDYNASP_GENERATED_HEADER)
+BUILT_SOURCES += $(LIBDYNASP_GENERATED_HEADER) $(LIBDYNASP_GENERATED_SOURCE)
 
 # list the names of the public header files of the libdynasp.la library
-libdynasp_la_include_HEADERS = \
+libdynasp_old_la_include_HEADERS = \
 	include/dynasp/main \
 	include/dynasp/global \
 	\
@@ -93,7 +87,7 @@ libdynasp_la_include_HEADERS = \
 # list all source code files for the libdynasp.la library
 # don't need to list the generated .cc files from bison and flex
 # since automake already knows about them, and adds them automatically
-libdynasp_la_SOURCES = \
+libdynasp_old_la_SOURCES = \
 	src/assembly.cpp \
 	\
 	src/create.cpp \
@@ -134,11 +128,13 @@ libdynasp_la_SOURCES = \
 	src/util/errorhandling.cpp \
 	src/util/errorhandling.hpp \
 	src/util/debug.cpp \
-	src/util/debug.hpp
+	src/util/debug.hpp \
+	\
+	$(LIBDYNASP_GENERATED_HEADER)
 
 # tell automake that the installation directory for public header files of the
 # libdynasp.la library should be a subfolder in the default ${includedir}
-libdynasp_la_includedir = ${includedir}/dynasp
+libdynasp_old_la_includedir = ${includedir}/dynasp
 
 # tell libtool to pass certain LDFLAGS to the compiler when building libsharp.la
 #
@@ -158,24 +154,24 @@ libdynasp_la_includedir = ${includedir}/dynasp
 #       0 if there is a backwards-compatibility breaking change, otherwise
 #       increase by 1 if CURRENT was increased by one.
 #
-libdynasp_la_LDFLAGS = -version-info 0:0:0
+libdynasp_old_la_LDFLAGS = -version-info 0:0:0
 
 ############################
 # PROGRAMS TO BUILD:	   #
 ############################
 
 # Link the main library (libdynasp.la) to all programs.
-LDADD = libdynasp.la
+LDADD = libdynasp_old.la
 
 # tell automake which programs to build
-bin_PROGRAMS = dynasp
+bin_PROGRAMS = dynasp_old
 
 #----------------------#
 # dynasp build options #
 #----------------------#
 
 # list all source code files for the dynasp program
-dynasp_SOURCES = \
+dynasp_old_SOURCES = \
 	src/main.cpp
 
 ############################
@@ -186,8 +182,12 @@ dynasp_SOURCES = \
 # not installed on "make install"
 dist_noinst_SCRIPTS = autogen.sh
 
+# tell automake which files to package into distribution tarballs not involved
+# in rules or autoconf templates
+EXTRA_DIST = 
+
 # tell automake to clean the generated files on "make clean"
-CLEANFILES += $(BUILT_SOURCES)
+CLEANFILES = $(BUILT_SOURCES)
 
 ############################
 # UNIT TESTS:              #

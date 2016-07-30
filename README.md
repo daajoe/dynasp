@@ -3,8 +3,7 @@
 #INSTALLATION
   Just clone the repository including all the submodules via
   ```bash
-  $ git clone https://github.com/daajoe/dynasp.git && cd dynasp/
-  --recursive -j8
+  $ git clone --recursive -j8 https://github.com/daajoe/dynasp.git
   ```
   
   or

@@ -5,6 +5,7 @@
 #include "DynAspCountingSolutionExtractor.hpp"
 
 #include <dynasp/IDynAspTuple.hpp>
+#include <dynasp/IGroundAspInstance.hpp>
 
 namespace dynasp
 {
@@ -23,17 +24,23 @@ namespace dynasp
 
 	DynAspCountingSolution *DynAspCountingSolutionExtractor::extractSolution(
 			vertex_t node,
-			const ITreeDecomposition &,
+			const ITreeDecomposition &td,
 			const INodeTupleSetMap &tuples,
-			const IInstance &) const
+			const IInstance &inst) const
 	{
 		mpz_class currentCount = 0;
 		size_t currentOptimalWeight = (size_t)-1; // maximal value of size_t
 
+		
+		std::cout << "SIZE: " << tuples[node].size() << std::endl;
+
+		/*for(const ITuple &entry : tuples[node])
+			static_cast<const IDynAspTuple &>(entry).isSolution();*/
+
 		for(const ITuple &entry : tuples[node])
 		{
 			const auto &tuple = static_cast<const IDynAspTuple &>(entry);
-			if(!tuple.isSolution()) continue;
+			if(!tuple.isSolution(static_cast<const IGroundAspInstance&>(inst).getNodeData(td.root()))) continue;
 
 			if(currentOptimalWeight > tuple.solutionWeight())
 			{

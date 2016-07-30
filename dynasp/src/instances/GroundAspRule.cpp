@@ -4,6 +4,8 @@
 #include "../util/debug.hpp"
 
 #include "GroundAspRule.hpp"
+#include <cassert>
+#include <dynasp/TreeNodeInfo.hpp>
 
 namespace dynasp
 {
@@ -63,6 +65,16 @@ namespace dynasp
 		return minimumBodyWeight_ != maximumBodyWeight_;
 	}
 
+	bool GroundAspRule::isPosWeightedAtom(atom_t atom) const
+	{
+		return hasWeightedBody() && positiveBody_.find(atom) != positiveBody_.end();
+	}
+
+	bool GroundAspRule::isNegWeightedAtom(atom_t atom) const
+	{
+		return hasWeightedBody() && negativeBody_.find(atom) != negativeBody_.end();
+	}
+
 	bool GroundAspRule::hasChoiceHead() const
 	{
 		return choiceRule_;
@@ -80,13 +92,14 @@ namespace dynasp
 
 	bool GroundAspRule::isNegativeBodyAtom(atom_t atom) const
 	{
-		return positiveBody_.find(atom) != positiveBody_.end();
+		return negativeBody_.find(atom) != negativeBody_.end();
 	}
 
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,
-			const atom_vector &reductFalseAtoms) const
+			const atom_vector &reductFalseAtoms,
+			const TreeNodeInfo& info) const
 	{
 		return this->check(trueAtoms, falseAtoms, reductFalseAtoms,
 				SatisfiabilityInfo
@@ -96,21 +109,25 @@ namespace dynasp
 					0,
 					maximumBodyWeight_,
 					0
-				});
+				}, info);
 	}
 
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &newTrueAtoms,
 			const atom_vector &newFalseAtoms,
 			const atom_vector &newReductFalseAtoms,
-			GroundAspRule::SatisfiabilityInfo ei) const
+			GroundAspRule::SatisfiabilityInfo ei,
+			const TreeNodeInfo& info) const
 	{
 		unordered_map<atom_t, size_t>::const_iterator it;
 
 		DBG("\n\trule{"); DBG(ei.minBodyWeight); DBG(".");
 		DBG(ei.maxBodyWeight); DBG("."); DBG(ei.seenHeadAtoms); DBG("} ");
+
 		DBG_COLL(newTrueAtoms); DBG_COLL(newFalseAtoms);
 		DBG_COLL(newReductFalseAtoms);
+#ifndef INT_ATOMS_TYPE
+
 
 		for(const atom_t atom : newReductFalseAtoms)
 			if(!choiceRule_ && head_.find(atom) != head_.end())
@@ -149,7 +166,73 @@ namespace dynasp
 				return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
 			else if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.minBodyWeight += it->second;
-		
+#else
+
+				//std::cout << newTrueAtoms << "," << newReductFalseAtoms << "," << newFalseAtoms << std::endl;
+
+			for (size_t p = 0; p < info.introducedAtoms.size() + info.rememberedAtoms.size(); ++p)
+		{
+			const atom_t atom = p >= info.introducedAtoms.size() ? info.rememberedAtoms[p - info.introducedAtoms.size()] : info.introducedAtoms[p]; //eibagaccess[p, newTrueAtoms];
+
+			/*else*/ if ((TO_INT(newReductFalseAtoms) >> p) & 1)        //true Atom
+			{
+				if (!choiceRule_ && head_.find(atom) != head_.end())
+					++ei.seenHeadAtoms;
+				else if (choiceRule_ && head_.find(atom) != head_.end())
+					ei.seenHeadAtoms = head_.size(); // h false
+				else if ((it = positiveBody_.find(atom)) != positiveBody_.end()
+						 && (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+					return SatisfiabilityInfo {true, false, 0, 0, 0}; // b false
+				else if ((it = negativeBody_.find(atom)) != negativeBody_.end()
+						 && (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+					return SatisfiabilityInfo {true, false, 0, 0, 0}; // reduct
+			}
+			/*}
+
+			for (size_t p = 0; p < info.introducedAtoms.size() + info.rememberedAtoms.size(); ++p)
+		{
+			const atom_t atom = p >= info.introducedAtoms.size() ? info.rememberedAtoms[p - info.introducedAtoms.size()] : info.introducedAtoms[p]; //eibagaccess[p, newTrueAtoms];
+			*/else if ((TO_INT(newTrueAtoms) >> p) & 1)		//true Atom
+			{
+				if(!choiceRule_ && head_.find(atom) != head_.end())
+					return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
+				else if(choiceRule_ && ei.seenHeadAtoms != head_.size()
+						&& head_.find(atom) != head_.end()
+						&& ++ei.seenHeadAtoms == head_.size())
+					return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
+				else if((it = negativeBody_.find(atom)) != negativeBody_.end()
+						&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+					return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
+				else if((it = positiveBody_.find(atom)) != positiveBody_.end())
+					ei.minBodyWeight += it->second;
+
+			}
+			/*}
+
+			for (size_t p = 0; p < info.introducedAtoms.size() + info.rememberedAtoms.size(); ++p)
+		{
+			const atom_t atom = p >= info.introducedAtoms.size() ? info.rememberedAtoms[p- info.introducedAtoms.size() ] : info.introducedAtoms[p]; //eibagaccess[p, newTrueAtoms];
+
+			*/else if ((TO_INT(newFalseAtoms) >> p) & 1)
+			{
+				if(!choiceRule_ && head_.find(atom) != head_.end())
+					++ei.seenHeadAtoms;
+				else if(choiceRule_ && ei.seenHeadAtoms != head_.size()
+						&& head_.find(atom) != head_.end()
+						&& ++ei.seenHeadAtoms == head_.size())
+					return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
+				else if((it = positiveBody_.find(atom)) != positiveBody_.end()
+						&& (ei.maxBodyWeight -= it->second) < minimumBodyWeight_)
+					return SatisfiabilityInfo { true, false, 0, 0, 0 }; // b false
+				else if((it = negativeBody_.find(atom)) != negativeBody_.end())
+					ei.minBodyWeight += it->second;
+			}
+			/*else
+				assert(false);*/
+		}
+
+#endif
+		assert(ei.seenHeadAtoms <= head_.size());
 		if(ei.seenHeadAtoms != head_.size()) return ei; // unknown
 		if(ei.minBodyWeight < minimumBodyWeight_) return ei; // unknown
 		return SatisfiabilityInfo { false, true, 0, 0, 0 }; // h false, b true
@@ -160,7 +243,7 @@ namespace dynasp
 			const atom_vector &sharedFalseAtoms,
 			const atom_vector &sharedReductFalseAtoms,
 			SatisfiabilityInfo ei1,
-			SatisfiabilityInfo ei2) const
+			SatisfiabilityInfo ei2, const TreeNodeInfo &info) const
 	{
 		SatisfiabilityInfo ei
 		{
@@ -177,7 +260,44 @@ namespace dynasp
 		if(headFalse) ei.seenHeadAtoms = head_.size();
 
 		unordered_map<atom_t, size_t>::const_iterator it;
-
+#ifdef INT_ATOMS_TYPE
+		assert(false);
+		for (size_t p = 0; p < info.introducedAtoms.size() + info.rememberedAtoms.size(); ++p)
+		{
+			const atom_t atom = p >= info.introducedAtoms.size() ? info.rememberedAtoms[p - info.introducedAtoms.size()] : info.introducedAtoms[p];
+			if ((TO_INT(sharedReductFalseAtoms) >> p) & 1)
+			{
+				if((it = negativeBody_.find(atom)) != negativeBody_.end())
+					ei.maxBodyWeight += it->second;
+				else if((it = positiveBody_.find(atom)) != positiveBody_.end())
+					ei.maxBodyWeight += it->second;
+				else if((!choiceRule_ || !headFalse)
+						&& head_.find(atom) != head_.end())
+					--ei.seenHeadAtoms;
+			}
+			else if ((TO_INT(sharedTrueAtoms) >> p) & 1)
+			{
+				if((it = negativeBody_.find(atom)) != negativeBody_.end())
+					ei.maxBodyWeight += it->second;
+				else if((it = positiveBody_.find(atom)) != positiveBody_.end())
+					ei.minBodyWeight -= it->second;
+				else if((!choiceRule_ || !headFalse)
+						&& head_.find(atom) != head_.end())
+					--ei.seenHeadAtoms;
+			}
+			else
+			{
+				assert((TO_INT(sharedFalseAtoms) >> p) & 1);
+				if((it = negativeBody_.find(atom)) != negativeBody_.end())
+					ei.minBodyWeight -= it->second;
+				else if((it = positiveBody_.find(atom)) != positiveBody_.end())
+					ei.maxBodyWeight += it->second;
+				else if((!choiceRule_ || !headFalse)
+						&& head_.find(atom) != head_.end())
+					--ei.seenHeadAtoms;
+			}
+		}
+#else
 		for(const atom_t atom : sharedReductFalseAtoms)
 			if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.maxBodyWeight += it->second;
@@ -204,7 +324,7 @@ namespace dynasp
 			else if((!choiceRule_ || !headFalse)
 					&& head_.find(atom) != head_.end())
 				--ei.seenHeadAtoms;
-
+#endif
 		if(choiceRule_ && !headFalse && ei.seenHeadAtoms == head_.size())
 			return SatisfiabilityInfo { true, false, 0, 0, 0 }; // h true
 		if(ei.maxBodyWeight < minimumBodyWeight_)
@@ -212,13 +332,12 @@ namespace dynasp
 		if(ei.seenHeadAtoms == head_.size()
 				&& ei.minBodyWeight >= minimumBodyWeight_)
 			return SatisfiabilityInfo { false, true, 0, 0, 0 }; // known false
-
 		return ei; // still unknown
 	}
 
 	IGroundAspRule::const_iterator GroundAspRule::begin() const
 	{
-		DBG(this); DBG(" "); DBG(choiceRule_ ? "c" : "h"); DBG_COLL(head_);
+		DBG(this); DBG(" "); DBG(choiceRule_ ? "c" : "h"); DBG_COLL_ONLY(head_);
 		DBG(" p"); DBG_MAP(positiveBody_); DBG(" n"); DBG_MAP(negativeBody_);
 		DBG(" >= "); DBG(minimumBodyWeight_); DBG(std::endl);
 

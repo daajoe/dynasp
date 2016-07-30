@@ -82,7 +82,11 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/Rule.hpp \
 	\
 	include/dynasp/TreeNodeInfo.hpp \
-	include/dynasp/DynAspAlgorithm.hpp
+	include/dynasp/DynAspAlgorithm.hpp \
+	\
+	include/dynasp/SortedAtomVector.hpp \
+	include/dynasp/CertificateDynAspTuple.hpp \
+	include/dynasp/ReferenceCounter.hpp
 
 # list all source code files for the libdynasp.la library
 # don't need to list the generated .cc files from bison and flex
@@ -93,20 +97,19 @@ libdynasp_la_SOURCES = \
 	src/create.cpp \
 	src/Parser.cpp \
 	\
+	src/util/SortedAtomVector.cpp \
+	\
 	src/algorithms/DynAspAlgorithm.cpp \
+	src/algorithms/DynAspCertificateAlgorithm.cpp \
 	src/algorithms/DynAspCountingSolution.cpp \
 	src/algorithms/DynAspCountingSolutionExtractor.cpp \
 	src/algorithms/DynAspCountingSolutionExtractor.hpp \
 	src/algorithms/DynAspCountingSolution.hpp \
-	src/algorithms/FullDynAspTuple.cpp \
-	src/algorithms/FullDynAspTuple.hpp \
-	src/algorithms/InverseSimpleDynAspTuple.cpp \
-	src/algorithms/InverseSimpleDynAspTuple.hpp \
-	src/algorithms/RuleSetDynAspTuple.cpp \
-	src/algorithms/RuleSetDynAspTuple.hpp \
 	src/algorithms/SimpleDynAspTuple.cpp \
 	src/algorithms/SimpleDynAspTuple.hpp \
+	src/algorithms/CertificateDynAspTuple.cpp \
 	\
+	src/instances/TreeNodeInfo.cpp \
 	src/instances/GroundAspInstance.cpp \
 	src/instances/GroundAspInstance.hpp \
 	src/instances/GroundAspRule.cpp \
@@ -129,6 +132,8 @@ libdynasp_la_SOURCES = \
 	src/util/errorhandling.hpp \
 	src/util/debug.cpp \
 	src/util/debug.hpp \
+	src/algorithms/RuleSetDynAspTuple.cpp \
+	src/algorithms/RuleSetDynAspTuple.hpp \
 	\
 	$(LIBDYNASP_GENERATED_HEADER)
 
@@ -178,8 +183,8 @@ dynasp_SOURCES = \
 # DISTRIBUTION OPTIONS:	   #
 ############################
 
-# tell automake about scripts that should be distributed in the tarball, but
-# not installed on "make install"
+# tell automake that the files after the "=" should not be installed into a
+# distribution tarball of the library.
 dist_noinst_SCRIPTS = autogen.sh
 
 # tell automake which files to package into distribution tarballs not involved

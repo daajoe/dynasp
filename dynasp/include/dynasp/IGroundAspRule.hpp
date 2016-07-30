@@ -10,6 +10,13 @@
 #include <vector>
 #include <cstddef>
 
+#include <dynasp/TreeNodeInfo.hpp>
+/*
+namespace dynasp
+{
+	struct TreeNodeInfo;
+}*/
+
 namespace dynasp
 {
 	class DYNASP_API IGroundAspRule
@@ -48,6 +55,8 @@ namespace dynasp
 		virtual void addNegativeBodyAtom(atom_t atom, std::size_t weight) = 0;
 		virtual void setMinimumBodyWeight(std::size_t weight) = 0;
 
+		virtual bool isPosWeightedAtom(atom_t atom) const = 0;
+		virtual bool isNegWeightedAtom(atom_t atom) const = 0;
 		virtual bool hasWeightedBody() const = 0;
 		virtual bool hasChoiceHead() const = 0;
 		virtual bool isHeadAtom(atom_t atom) const = 0;
@@ -57,20 +66,26 @@ namespace dynasp
 		virtual SatisfiabilityInfo check(
 				const atom_vector &trueAtoms,
 				const atom_vector &falseAtoms,
-				const atom_vector &reductFalseAtoms) const = 0;
+				const atom_vector &reductFalseAtoms,
+				const TreeNodeInfo& info
+				) const = 0;
 
 		virtual SatisfiabilityInfo check(
 				const atom_vector &newTrueAtoms,
 				const atom_vector &newFalseAtoms,
 				const atom_vector &newReductFalseAtoms,
-				SatisfiabilityInfo establishedInfo) const = 0;
+				SatisfiabilityInfo establishedInfo,
+				const TreeNodeInfo& info
+				) const = 0;
 
 		virtual SatisfiabilityInfo check(
 				const atom_vector &sharedTrueAtoms,
 				const atom_vector &sharedFalseAtoms,
 				const atom_vector &sharedReductFalseAtoms,
 				SatisfiabilityInfo establishedInfo1,
-				SatisfiabilityInfo establishedInfo2) const = 0;
+				SatisfiabilityInfo establishedInfo2,
+				const TreeNodeInfo& info
+				) const = 0;
 
 		virtual const_iterator begin() const = 0;
 		virtual const_iterator end() const = 0;

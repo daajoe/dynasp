@@ -31,20 +31,40 @@ namespace dynasp
 
 		virtual bool isRule(htd::vertex_t vertex) const;
 		virtual bool isAtom(htd::vertex_t vertex) const;
+ 		virtual bool isNegatedAtom(htd::vertex_t vertex);
+ 		virtual void setSpeedup(bool speed);
+
+
 
 		virtual const IGroundAspRule &rule(htd::vertex_t rule) const;
 
 		virtual std::size_t weight(
 				const atom_vector &trueAtoms,
-				const atom_vector &falseAtoms) const;
+				const atom_vector &falseAtoms, const TreeNodeInfo& info) const;
+
+	//#ifdef INT_ATOMS_TYPE
+		/*struct NodeData
+		{
+			size_t int_introducedAtoms,
+				int_rememberedAtoms;
+		};*/
+		
+		void setNodeData(size_t node, TreeNodeInfo&& data);
+		const TreeNodeInfo& getNodeData(size_t node) const;
+		TreeNodeInfo& getNodeData(size_t node);
+	//#endif
 
 	private:
-		atom_t maxAtom_;
+		atom_t maxAtom_; bool negativesComputed_;
 		std::unordered_map<atom_t, std::string> atomNames_;
 		std::unordered_map<atom_t, std::size_t> positiveAtomWeights_;
 		std::unordered_map<atom_t, std::size_t> negativeAtomWeights_;
 		std::vector<IGroundAspRule *> rules_;
-
+		std::unordered_set<atom_t> negatives_;
+	//#ifdef INT_ATOMS_TYPE
+		std::unordered_map<size_t, TreeNodeInfo> nodeData;
+		bool speed;
+	//#endif
 	public:
 		friend class PrimalHypergraphConverter;
 		friend class IncidenceHypergraphConverter;

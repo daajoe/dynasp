@@ -34,6 +34,7 @@ namespace dynasp
 		static void set(IGroundAspInstanceFactory *factory);
 		static void set(IHypergraphConverterFactory *factory);
 		static void set(IDynAspTupleFactory *factory);
+		static ConfigurationType get();
 
 		static IGroundAspRule *rule();
 		static IGroundAspRule *rule(ConfigurationType type);

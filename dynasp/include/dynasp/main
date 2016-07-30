@@ -2,6 +2,7 @@
 #include <dynasp/Atom.hpp>
 #include <dynasp/create.hpp>
 #include <dynasp/DynAspAlgorithm.hpp>
+#include <dynasp/DynAspCertificateAlgorithm.hpp>
 #include <dynasp/IDynAspCountingSolution.hpp>
 #include <dynasp/IDynAspCountingSolutionExtractor.hpp>
 #include <dynasp/IDynAspTupleFactory.hpp>

@@ -5,6 +5,7 @@
 #ifdef DEBUG
 
 #include <iostream>
+#include <dynasp/global>
 
 namespace dynasp
 {
@@ -127,8 +128,15 @@ namespace dynasp
 #define DBG(x) \
 	Debug::stream << (x)
 
-#define DBG_COLL(x) \
+#define DBG_COLL_ONLY(x) \
 	Debug::printColl(Debug::stream, (x))
+
+#ifdef INT_ATOMS_TYPE
+#define DBG_COLL(x) DBG(x)
+#else
+	#define DBG_COLL(x) \
+	Debug::printColl(Debug::stream, (x))
+#endif
 
 #define DBG_MAP(x) \
 	Debug::printMap(Debug::stream, (x))
@@ -153,6 +161,7 @@ namespace dynasp
 #define DBG_SET(...)
 #define DBG(...)
 #define DBG_COLL(...)
+#define DBG_COLL_ONLY(...)
 #define DBG_MAP(...)
 #define DBG_RULMAP(...)
 #define DBG_CERT(...)

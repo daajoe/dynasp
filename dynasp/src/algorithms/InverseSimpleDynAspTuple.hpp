@@ -23,7 +23,7 @@ namespace dynasp
 		virtual bool isSolution() const;
 		virtual mpz_class solutionCount() const;
 		virtual std::size_t solutionWeight() const;
-		virtual std::size_t joinHash(const atom_vector &atoms) const;
+		virtual std::size_t joinHash(const htd::vertex_container &atoms) const;
 		virtual std::size_t mergeHash() const;
 		virtual std::size_t hash() const;
 
@@ -38,7 +38,7 @@ namespace dynasp
 				const htd::vertex_container &baseVertices,
 				const htd::vertex_container &joinVertices,
 				const IDynAspTuple &tuple,
-				const std::vector<htd::vertex_t> &tupleVertices) const;
+				const std::vector<htd::vertex_t> tupleVertices) const;
 
 		virtual bool operator==(const ITuple &other) const;
 

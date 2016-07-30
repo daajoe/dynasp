@@ -87,8 +87,10 @@ AS_IF([test "x$with_gmp" = xyes],
 AC_SEARCH_LIBS([htd_version], [htd],
 	        [HTD_LIBS=$ac_cv_search_htd_version],
 	        [AC_MSG_FAILURE([libhtd not found])])
-#LDADD=/home/jfichte/.local/lib/libsharp.so
+
 #LDADD=/home/jfichte/.local/lib/libhtd.so
+#LDADD=/home/jfichte/.local/lib/libsharp.so
+
 # check for htd library
 #TODO: check for "none required" output of AC_SEARCH_LIBS
 AC_SEARCH_LIBS([sharp_version], [sharp],

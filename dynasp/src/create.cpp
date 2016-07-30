@@ -7,10 +7,10 @@
 #include "instances/PrimalHypergraphConverter.hpp"
 #include "instances/IncidenceHypergraphConverter.hpp"
 #include "instances/IncidencePrimalHypergraphConverter.hpp"
-#include "algorithms/FullDynAspTuple.hpp"
+//#include "algorithms/FullDynAspTuple.hpp"
 #include "algorithms/SimpleDynAspTuple.hpp"
 #include "algorithms/RuleSetDynAspTuple.hpp"
-#include "algorithms/InverseSimpleDynAspTuple.hpp"
+//#include "algorithms/InverseSimpleDynAspTuple.hpp"
 #include "algorithms/DynAspCountingSolutionExtractor.hpp"
 
 #include <dynasp/create.hpp>
@@ -28,6 +28,11 @@ namespace dynasp
 		IDynAspTupleFactory *tupleFactory_ = nullptr;
 	}
 
+	create::ConfigurationType create::get()
+	{
+		return type_;
+	}
+
 	void create::set(ConfigurationType type)
 	{
 		switch(type)
@@ -42,7 +47,7 @@ namespace dynasp
 			break;
 
 		default:
-			throw std::domain_error("Invalid type.");
+			throw std::domain_error("Invalid type1.");
 			break;
 		}
 	}
@@ -129,7 +134,7 @@ namespace dynasp
 			return new IncidencePrimalHypergraphConverter();
 
 		default:
-			throw std::domain_error("Invalid type.");
+			throw std::domain_error("Invalid type2.");
 		}
 	}
 
@@ -146,19 +151,20 @@ namespace dynasp
 		case create::PRIMAL_FULLTUPLE:
 		case create::INCIDENCE_FULLTUPLE:
 		case create::INCIDENCEPRIMAL_FULLTUPLE:
-			return new FullDynAspTuple(leaf);
+			//return new FullDynAspTuple(leaf);
 
 		case create::PRIMAL_SIMPLETUPLE:
-			return new SimpleDynAspTuple(leaf);
+			return new SimpleDynAspTuple(/*leaf*/);
 
 		case create::PRIMAL_INVERSESIMPLETUPLE:
-			return new InverseSimpleDynAspTuple(leaf);
+			//return new InverseSimpleDynAspTuple(leaf);
 
 		case create::INCIDENCEPRIMAL_RULESETTUPLE:
+			//TODO: remove this stuff here!
 			return new RuleSetDynAspTuple(leaf);
 
 		default:
-			throw std::domain_error("Invalid type.");
+			throw std::domain_error("Invalid type3.");
 		}
 	}
 

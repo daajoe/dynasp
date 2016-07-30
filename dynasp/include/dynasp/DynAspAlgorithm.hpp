@@ -6,10 +6,13 @@
 #include <sharp/main>
 
 #include <htd/main.hpp>
+#include <dynasp/Atom.hpp>
+#include "IDynAspTuple.hpp"
 
 namespace dynasp
 {
 
+	class TreeNodeInfo;
 	class DYNASP_API DynAspAlgorithm : public sharp::ITreeTupleAlgorithm
 	{
 	public:
@@ -28,9 +31,13 @@ namespace dynasp
 
 		virtual bool needAllTupleSets() const;
 
+		void setFurther(bool f) { further = f; }
+
 	private:
-		struct Impl;
-		Impl * const impl;
+		bool further;
+
+		/*struct Impl;
+		Impl * const impl;*/
 
 	}; // class DynAspAlgorithm
 

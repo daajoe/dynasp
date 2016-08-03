@@ -3,7 +3,7 @@
 ### Debian
 #### System Packages 
  ```bash
- $ sudo apt-get install git libgmp-dev libtool-bin
+ $ sudo apt-get install git libgmp-dev libtool-bin flex
  ```
 #### External Packages
 - cmake (3.2+)

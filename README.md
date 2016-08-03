@@ -3,7 +3,7 @@
 ### Debian
 #### System Packages 
  ```bash
- $ sudo apt-get install git libgmp-dev libtool-bin flex
+ $ sudo apt-get install git libgmp-dev libtool-bin flex bison
  ```
 #### External Packages
 - cmake (3.2+)

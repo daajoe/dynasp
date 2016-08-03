@@ -82,6 +82,7 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/Rule.hpp \
 	\
 	include/dynasp/TreeNodeInfo.hpp \
+	include/dynasp/DynAspCertificateAlgorithm.hpp \
 	include/dynasp/DynAspAlgorithm.hpp \
 	\
 	include/dynasp/SortedAtomVector.hpp \
@@ -169,14 +170,14 @@ libdynasp_la_LDFLAGS = -version-info 0:0:0
 LDADD = libdynasp.la
 
 # tell automake which programs to build
-bin_PROGRAMS = dynasp
+bin_PROGRAMS = dynasp2
 
 #----------------------#
 # dynasp build options #
 #----------------------#
 
 # list all source code files for the dynasp program
-dynasp_SOURCES = \
+dynasp2_SOURCES = \
 	src/main.cpp
 
 ############################

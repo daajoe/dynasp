@@ -95,7 +95,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-bin_PROGRAMS = dynasp$(EXEEXT)
+bin_PROGRAMS = dynasp2$(EXEEXT)
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/acx_pthread.m4 \
@@ -173,10 +173,10 @@ libdynasp_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CXX $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CXXLD) $(AM_CXXFLAGS) \
 	$(CXXFLAGS) $(libdynasp_la_LDFLAGS) $(LDFLAGS) -o $@
 PROGRAMS = $(bin_PROGRAMS)
-am_dynasp_OBJECTS = src/main.$(OBJEXT)
-dynasp_OBJECTS = $(am_dynasp_OBJECTS)
-dynasp_LDADD = $(LDADD)
-dynasp_DEPENDENCIES = libdynasp.la
+am_dynasp2_OBJECTS = src/main.$(OBJEXT)
+dynasp2_OBJECTS = $(am_dynasp2_OBJECTS)
+dynasp2_LDADD = $(LDADD)
+dynasp2_DEPENDENCIES = libdynasp.la
 SCRIPTS = $(dist_noinst_SCRIPTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -247,8 +247,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libdynasp_la_SOURCES) $(dynasp_SOURCES)
-DIST_SOURCES = $(libdynasp_la_SOURCES) $(dynasp_SOURCES)
+SOURCES = $(libdynasp_la_SOURCES) $(dynasp2_SOURCES)
+DIST_SOURCES = $(libdynasp_la_SOURCES) $(dynasp2_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -561,6 +561,7 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/Rule.hpp \
 	\
 	include/dynasp/TreeNodeInfo.hpp \
+	include/dynasp/DynAspCertificateAlgorithm.hpp \
 	include/dynasp/DynAspAlgorithm.hpp \
 	\
 	include/dynasp/SortedAtomVector.hpp \
@@ -654,7 +655,7 @@ LDADD = libdynasp.la
 #----------------------#
 
 # list all source code files for the dynasp program
-dynasp_SOURCES = \
+dynasp2_SOURCES = \
 	src/main.cpp
 
 
@@ -899,9 +900,9 @@ clean-binPROGRAMS:
 	rm -f $$list
 src/main.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 
-dynasp$(EXEEXT): $(dynasp_OBJECTS) $(dynasp_DEPENDENCIES) $(EXTRA_dynasp_DEPENDENCIES) 
-	@rm -f dynasp$(EXEEXT)
-	$(AM_V_CXXLD)$(CXXLINK) $(dynasp_OBJECTS) $(dynasp_LDADD) $(LIBS)
+dynasp2$(EXEEXT): $(dynasp2_OBJECTS) $(dynasp2_DEPENDENCIES) $(EXTRA_dynasp2_DEPENDENCIES) 
+	@rm -f dynasp2$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(dynasp2_OBJECTS) $(dynasp2_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

@@ -31,7 +31,7 @@ namespace dynasp
 		mpz_class currentCount = 0;
 		size_t currentOptimalWeight = (size_t)-1; // maximal value of size_t
 
-		
+		//TODO: JSON OUTPUT
 		std::cout << "SIZE: " << tuples[node].size() << std::endl;
 
 		/*for(const ITuple &entry : tuples[node])

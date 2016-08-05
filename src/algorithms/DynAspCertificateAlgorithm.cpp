@@ -50,6 +50,7 @@ namespace dynasp
 	DynAspCertificateAlgorithm::~DynAspCertificateAlgorithm()
 	{
 	#ifdef DEBUG_INFO
+        //TODO: JSON output
 		std::cout << "LEAF: " << leaf << std::endl;
 		std::cout << "EXCHANGE: " << exchange << std::endl;
 		std::cout << "JOIN: " << join << std::endl;

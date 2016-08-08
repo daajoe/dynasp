@@ -8,6 +8,7 @@ extern "C"
 {
 	DYNASP_API const char *dynasp_version()
 	{
-		return VERSION;
+		return "0.9.9";
+		//		return VERSION;
 	}
 }

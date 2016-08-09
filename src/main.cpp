@@ -255,154 +255,160 @@ void printBenchmarks(int signal) {
 }
 
 int main(int argc, char *argv[]) {
-    //signal(SIGINT, sighandler);
-    sharp::Benchmark::registerTimestamp("program start");
+    std::shared_ptr <ISharpOutput> output = std::make_shared<TextOutput>();
+    sharp::Benchmark::registerOutput(output);
+    try {
 
-    const DynAspOptions opts(argc, argv);
+        sharp::Benchmark::registerTimestamp("program start");
 
-    if (opts.error) {
-        printHelp(argv[0]);
-        exit(EXIT_ARGUMENT_ERROR);
-    }
+        const DynAspOptions opts(argc, argv);
 
-    if (opts.displayHelp) {
-        printHelp(argv[0]);
-        exit(EXIT_SUCCESS);
-    }
-
-
-    sharp::TextOutput output = sharp::TextOutput();
-
-    if(opts.displayPCS)
-    {
-        printPCS(argv[0]);
-        exit(EXIT_SUCCESS);
-    }
-
-    if (opts.displayVersion) {
-        printVersion();
-        exit(EXIT_SUCCESS);
-    }
-
-    if (opts.printBenchmarks){
-        signal(SIGINT, printBenchmarks);
-    }
-
-    if (opts.useSeed) {
-        std::srand(opts.seed);
-    }
-
-    if (opts.customTreeDecomposition) {
-        htd::IOrderingAlgorithm *ct = nullptr;
-
-        switch (opts.heuristic) {
-            case DynAspOptions::MAXIMUM_CARDINALITY_SEARCH:
-                ct = new htd::MaximumCardinalitySearchOrderingAlgorithm();
-                break;
-
-            case DynAspOptions::MINIMUM_FILL_EDGES:
-            default:
-                ct = new htd::MinFillOrderingAlgorithm();
-                break;
+        if (opts.error) {
+            printHelp(argv[0]);
+            exit(EXIT_ARGUMENT_ERROR);
         }
 
-        htd::OrderingAlgorithmFactory::instance().setConstructionTemplate(ct);
-    }
-
-    if (opts.customConfiguration) dynasp::create::set(opts.configuration);
-
-    std::ifstream inputFileStream;
-    std::istream *inputStream = &std::cin;
-    if (opts.readFromFile) {
-        inputStream = &inputFileStream;
-        inputFileStream.open(opts.fileToRead, std::ifstream::in);
-
-        if (inputFileStream.fail() || !inputFileStream.is_open()) {
-            std::ostringstream err;
-            err << "Failed to read from file '" << opts.fileToRead << "'.";
-            output.error(err.str());
-            exit(EXIT_FILEOPEN_ERROR);
+        if (opts.displayHelp) {
+            printHelp(argv[0]);
+            exit(EXIT_SUCCESS);
         }
-    }
 
-    output.info("Parsing...");
-    std::unique_ptr <dynasp::IParser> parser(dynasp::Parser::get());
-    std::unique_ptr <dynasp::IGroundAspInstance> instance(
-            parser->parse(inputStream));
-    parser.reset();
-    sharp::Benchmark::registerTimestamp("parsing time");
+        if (opts.displayPCS) {
+            printPCS(argv[0]);
+            exit(EXIT_SUCCESS);
+        }
 
-    if (!instance.get())
-        exit(EXIT_PARSING_ERROR);
+        if (opts.displayVersion) {
+            printVersion();
+            exit(EXIT_SUCCESS);
+        }
 
-    output.info("Initializing solver...");
-    std::unique_ptr <htd::ITreeDecompositionAlgorithm> tdAlgorithm(
-            htd::TreeDecompositionAlgorithmFactory::instance()
-                    .getTreeDecompositionAlgorithm());
-    dynasp::DynAspAlgorithm algorithm;
-    dynasp::DynAspCertificateAlgorithm second_layer_algorithm;
-    std::unique_ptr <dynasp::IDynAspCountingSolutionExtractor> extractor(
-            dynasp::create::countingSolutionExtractor());
-    std::unique_ptr <sharp::ITreeTupleAlgorithm> two_layered_algorithm(
-            sharp::create::treeTupleAlgorithm(algorithm, second_layer_algorithm));
+        if (opts.printBenchmarks) {
+            signal(SIGINT, printBenchmarks);
+        }
 
-    instance->setSpeedup(opts.reductSpeedup);
+        if (opts.useSeed) {
+            std::srand(opts.seed);
+        }
+
+        if (opts.customTreeDecomposition) {
+            htd::IOrderingAlgorithm *ct = nullptr;
+
+            switch (opts.heuristic) {
+                case DynAspOptions::MAXIMUM_CARDINALITY_SEARCH:
+                    ct = new htd::MaximumCardinalitySearchOrderingAlgorithm();
+                    break;
+
+                case DynAspOptions::MINIMUM_FILL_EDGES:
+                default:
+                    ct = new htd::MinFillOrderingAlgorithm();
+                    break;
+            }
+
+            htd::OrderingAlgorithmFactory::instance().setConstructionTemplate(ct);
+        }
+
+        if (opts.customConfiguration) dynasp::create::set(opts.configuration);
+
+        std::ifstream inputFileStream;
+        std::istream *inputStream = &std::cin;
+        if (opts.readFromFile) {
+            inputStream = &inputFileStream;
+            inputFileStream.open(opts.fileToRead, std::ifstream::in);
+
+            if (inputFileStream.fail() || !inputFileStream.is_open()) {
+                std::ostringstream err;
+                err << "Failed to read from file '" << opts.fileToRead << "'.";
+                output->error(err.str());
+                exit(EXIT_FILEOPEN_ERROR);
+            }
+        }
+
+        output->info("Parsing...");
+        std::unique_ptr <dynasp::IParser> parser(dynasp::Parser::get());
+        std::unique_ptr <dynasp::IGroundAspInstance> instance(
+                parser->parse(inputStream));
+        parser.reset();
+        sharp::Benchmark::registerTimestamp("parsing time");
+
+        if (!instance.get())
+            exit(EXIT_PARSING_ERROR);
+
+        output->info("Initializing solver...");
+        std::unique_ptr <htd::ITreeDecompositionAlgorithm> tdAlgorithm(
+                htd::TreeDecompositionAlgorithmFactory::instance()
+                        .getTreeDecompositionAlgorithm());
+        dynasp::DynAspAlgorithm algorithm;
+        dynasp::DynAspCertificateAlgorithm second_layer_algorithm;
+        std::unique_ptr <dynasp::IDynAspCountingSolutionExtractor> extractor(
+                dynasp::create::countingSolutionExtractor());
+        std::unique_ptr <sharp::ITreeTupleAlgorithm> two_layered_algorithm(
+                sharp::create::treeTupleAlgorithm(algorithm, second_layer_algorithm));
+
+        instance->setSpeedup(opts.reductSpeedup);
 //#define SINGLE_LAYER
 
 #ifdef SINGLE_LAYER
-    std::unique_ptr<sharp::ITreeSolver> solver(
-            sharp::create::treeSolver(*tdAlgorithm, algorithm, *extractor,output));
+        std::unique_ptr<sharp::ITreeSolver> solver(
+                sharp::create::treeSolver(*tdAlgorithm, algorithm, *extractor));
 #else
 #ifdef SEVERAL_PASSES
-    sharp::TreeTupleAlgorithmVector algs;
-    algs.push_back(&algorithm);
+        sharp::TreeTupleAlgorithmVector algs;
+        algs.push_back(&algorithm);
 
 #ifdef THREE_PASSES
-        dynasp::DynAspAlgorithm algorithm2;
-        algorithm2.setFurther(true);
+            dynasp::DynAspAlgorithm algorithm2;
+            algorithm2.setFurther(true);
 
 #ifndef MERGE_PASS_TWO_THREE
-            algs.push_back(&algorithm2);
+                algs.push_back(&algorithm2);
 #endif
 #endif
 
 #ifdef MERGE_PASS_TWO_THREE
-        std::unique_ptr<sharp::ITreeTupleAlgorithm> two_layered_algorithm2(
-        sharp::create::treeTupleAlgorithm(algorithm2, second_layer_algorithm));
+            std::unique_ptr<sharp::ITreeTupleAlgorithm> two_layered_algorithm2(
+            sharp::create::treeTupleAlgorithm(algorithm2, second_layer_algorithm));
 
-        algs.push_back(*two_layered_algorithm2);
+            algs.push_back(*two_layered_algorithm2);
 #else
-        algs.push_back(&second_layer_algorithm);
+            algs.push_back(&second_layer_algorithm);
 #endif
-    std::unique_ptr<sharp::ITreeSolver> solver(
-            sharp::create::treeSolver(*tdAlgorithm, algs, *extractor));
+        std::unique_ptr<sharp::ITreeSolver> solver(
+                sharp::create::treeSolver(*tdAlgorithm, algs, *extractor));
 #else
-    std::unique_ptr < sharp::ITreeSolver > solver(
-            sharp::create::treeSolver(*tdAlgorithm, *two_layered_algorithm, *extractor,output));
+        std::unique_ptr < sharp::ITreeSolver > solver(
+                sharp::create::treeSolver(*tdAlgorithm, *two_layered_algorithm, *extractor));
 #endif
 #endif
 
-    output.info("Decomposing...");
-    std::unique_ptr <htd::ITreeDecomposition> td(solver->decompose(*instance, opts.weak, opts.children, opts.tdopt));
-    output.key_value("treewidth",td->maximumBagSize() - 1);
+        output->info("Decomposing...");
+        std::unique_ptr <htd::ITreeDecomposition> td(
+                solver->decompose(*instance, opts.weak, opts.children, opts.tdopt));
+        output->data("treewidth", td->maximumBagSize() - 1);
 
-    if (!opts.decompositionOnly) {
-        output.info("Solving... ");
-        std::unique_ptr <dynasp::IDynAspCountingSolution> solution(
-                static_cast<dynasp::IDynAspCountingSolution *>(
-                        solver->solve(*instance, *td)));
-        output.info("done.");
+        if (!opts.decompositionOnly) {
+            output->info("Solving... ");
+            std::unique_ptr <dynasp::IDynAspCountingSolution> solution(
+                    static_cast<dynasp::IDynAspCountingSolution *>(
+                            solver->solve(*instance, *td)));
+            output->info("done.");
 
-        if (solution->optimalWeight() != (size_t) - 1)
-            output.key_value("optimal weight",solution->optimalWeight());
-        else
-            output.key_value("optimal weight", "N/A");
-        output.key_value("solution count", solution->count());
+            if (solution->optimalWeight() != (size_t) - 1)
+                output->data("optimal weight", solution->optimalWeight());
+            else
+                output->data("optimal weight", "N/A");
+            output->data("solution count", solution->count());
+
+        }
+
+        if (opts.printBenchmarks) {
+            sharp::Benchmark::printBenchmarks(std::cout, opts.printMachineReadable);
+        }
+
+        return EXIT_SUCCESS;
     }
-
-    if (opts.printBenchmarks) {
-        sharp::Benchmark::printBenchmarks(std::cout, opts.printMachineReadable);
+    catch (char const *e) {
+        std::cerr << std::endl << "========== UNHANDLED EXCEPTION. ==========" << std::endl <<
+                  "Exception text: '" << e << "'" << std::endl << "Exiting ..." << std::endl;
     }
-
-    return EXIT_SUCCESS;
 }

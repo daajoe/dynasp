@@ -51,13 +51,12 @@ namespace dynasp
 	{
 	#ifdef DEBUG_INFO
         //TODO: JSON output
-		std::cout << "LEAF: " << leaf << std::endl;
-		std::cout << "EXCHANGE: " << exchange << std::endl;
-		std::cout << "JOIN: " << join << std::endl;
-		std::cout << std::endl;
-		std::cout << "FIRSTS: " << first << std::endl;
-		std::cout << "REUSES: " << reuse << std::endl;
-		std::cout << "SPLITUPS: " << splitup << std::endl;
+        sharp::Benchmark::output()->debug("LEAF", leaf);
+		sharp::Benchmark::output()->debug("EXCHANGE", exchange);
+		sharp::Benchmark::output()->debug("JOIN", join);
+		sharp::Benchmark::output()->debug("FIRSTS", first);
+		sharp::Benchmark::output()->debug("REUSES", reuse);
+		sharp::Benchmark::output()->debug("SPLITUPS", splitup);
 	#endif
 		//if(impl) delete impl;
 	}

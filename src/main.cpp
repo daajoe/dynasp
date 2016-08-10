@@ -5,6 +5,8 @@
 #include <dynasp/main>
 #include <sharp/main>
 #include <sharp/ISharpOutput.hpp>
+#include <sharp/CsvOutput.hpp>
+#include <sharp/JsonOutput.hpp>
 #include <sharp/TextOutput.hpp>
 #include <htd/main.hpp>
 
@@ -76,7 +78,7 @@ namespace {
 
                     case 'b':
                         if (this->printBenchmarks)
-                            this->printMachineReadable = true;
+                            this->printCSV = true;
                         this->printBenchmarks = true;
                         break;
 
@@ -143,7 +145,7 @@ namespace {
         bool displayPCS = false; // -p, --print-pcs
         bool printBenchmarks = false; // -b, --benchmark
         bool printJSON = false; // -j, --print-json
-        bool printMachineReadable = false; // 2x -b, --benchmark
+        bool printCSV = false; // 2x -b, --benchmark
         bool decompositionOnly = false; // -d, --decomp
         bool customTreeDecomposition = false; // -t, --tree
         DecompositionHeuristic heuristic = MINIMUM_FILL_EDGES;
@@ -243,25 +245,29 @@ namespace {
     }
 }
 
-/*void sighandler(int)
-{
-	sharp::Benchmark::interrupt();
-}*/
-
-void printBenchmarks(int signal) {
-//    TODO: remove parameter
-    sharp::Benchmark::printBenchmarks(std::cout, false);
+void shutdown(int signal) {
+    sharp::Benchmark::printBenchmarks();
+    Benchmark::output()->exit();
     _exit(signal);
 }
 
 int main(int argc, char *argv[]) {
-    std::shared_ptr <ISharpOutput> output = std::make_shared<TextOutput>();
-    sharp::Benchmark::registerOutput(output);
+    const DynAspOptions opts(argc, argv);
     try {
+        std::shared_ptr <ISharpOutput> output;
+        if (opts.printJSON){
+            output = std::make_shared<JsonOutput>();
+        }
+        else if(opts.printCSV){
+            output = std::make_shared<CsvOutput>();
+        }
+        else{
+            output = std::make_shared<TextOutput>();
+        }
 
+        sharp::Benchmark::registerOutput(output);
         sharp::Benchmark::registerTimestamp("program start");
 
-        const DynAspOptions opts(argc, argv);
 
         if (opts.error) {
             printHelp(argv[0]);
@@ -284,7 +290,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (opts.printBenchmarks) {
-            signal(SIGINT, printBenchmarks);
+            signal(SIGINT, shutdown);
         }
 
         if (opts.useSeed) {
@@ -402,9 +408,10 @@ int main(int argc, char *argv[]) {
         }
 
         if (opts.printBenchmarks) {
-            sharp::Benchmark::printBenchmarks(std::cout, opts.printMachineReadable);
+            sharp::Benchmark::printBenchmarks();
         }
 
+        Benchmark::output()->exit();
         return EXIT_SUCCESS;
     }
     catch (char const *e) {

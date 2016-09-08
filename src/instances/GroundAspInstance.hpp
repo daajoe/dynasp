@@ -27,19 +27,7 @@ namespace dynasp
 				bool negated,
 				std::size_t weight);
 
-		virtual std::size_t getNumAtoms();
-        virtual std::size_t getNumRules();
-        virtual std::size_t getNumConstraints();
-        virtual std::size_t getNumBinaryConstraints();
-        virtual std::size_t getNumTernaryConstraints();
-        virtual std::size_t getNumOtherConstraints();
-        virtual std::size_t getNumCardinalityRules();
-        virtual std::size_t getNumChoiceRules();
-        virtual std::size_t getNumDisjunctiveRules();
-        virtual std::size_t getNumNormalRules();
-        virtual std::size_t getNumWeightedRules();
-
-        virtual htd::IHypergraph *toHypergraph() const;
+		virtual htd::IHypergraph *toHypergraph() const;
 
 		virtual bool isRule(htd::vertex_t vertex) const;
 		virtual bool isAtom(htd::vertex_t vertex) const;
@@ -60,7 +48,7 @@ namespace dynasp
 			size_t int_introducedAtoms,
 				int_rememberedAtoms;
 		};*/
-
+		
 		void setNodeData(size_t node, TreeNodeInfo&& data);
 		const TreeNodeInfo& getNodeData(size_t node) const;
 		TreeNodeInfo& getNodeData(size_t node);
@@ -75,7 +63,7 @@ namespace dynasp
 		std::unordered_set<atom_t> negatives_;
 	//#ifdef INT_ATOMS_TYPE
 		std::unordered_map<size_t, TreeNodeInfo> nodeData;
-		bool speed;
+		//bool speed;
 	//#endif
 	public:
 		friend class PrimalHypergraphConverter;

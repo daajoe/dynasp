@@ -77,12 +77,17 @@ namespace dynasp
 			,/*0,0,*/ AtomPositionMap()
 			,/*0,0,*/ AtomPositionMap()
 		#endif
+		/*#ifdef NON_NORM_JOIN
+			, vertex_container(),
+			vertex_container()
+		#endif*/
 	    };
 		TreeNodeInfo& info = further ? infoinst.instance->getNodeData(node) : infoinst;
 		//TODO: FIXME!!! reduces parallelism!
 		/*if (further)
 			CertificateDynAspTuple::createPointerCache();*/
 
+		size_t childCount = decomposition.childCount(node);
 		if (!further)
 		{
 
@@ -91,7 +96,7 @@ namespace dynasp
 					decomposition.rememberedVertices(node);
 			const ConstCollection<vertex_t> introduced =
 					decomposition.introducedVertices(node);
-
+			
 #ifdef INT_ATOMS_TYPE
 			unsigned int pos = 0, rpos = 0;
 			//IGroundAspInstance::AtomPositionMap atomAtPosition;
@@ -164,8 +169,53 @@ namespace dynasp
 				info.int_rememberedRules <<= pos;
 				info.int_introducedRules <<= pos;
 				for (auto& it : info.ruleAtPosition)
+				{
 					it.second += pos;
+
+					DBG("rule "); DBG(it.first); DBG(std::endl);
+				}
 			#endif
+
+		#ifdef NON_NORM_JOIN
+			
+			if (childCount >= 2)
+			{
+				const ConstCollection<vertex_t> joined =
+						decomposition.joinVertices(node);
+
+				for (auto i = joined.begin(); i != joined.end(); ++i)
+				{
+					vertex_t vertex = *i;
+					//FIXME: do this via labelling functions
+					if (info.instance->isRule(vertex))
+					{
+						if (create::get() == create::INCIDENCEPRIMAL_RULESETTUPLE)
+						{
+							DBG("join rule "); DBG(vertex); DBG(std::endl);
+							#ifdef INT_ATOMS_TYPE
+							info.int_joinRules |= 1 << info.ruleAtPosition.find(vertex)->second;
+							#else
+							assert(false);
+							#endif
+							//info.joinedRules.push_back(vertex);
+						}
+					}
+					else
+					{
+						DBG("join atom "); DBG(vertex); DBG(std::endl);
+						#ifdef INT_ATOMS_TYPE
+						info.int_joinAtoms |= 1 << info.atomAtPosition.find(vertex)->second;
+						#else
+						assert(false);
+						#endif
+						//info.joinedAtoms.push_back(vertex);
+					}
+				}
+				DBG("JOINED: "); DBG(info.int_joinAtoms);
+				assert(info.introducedAtoms.size() == 0);
+			}
+		#endif
+
 #ifdef USE_EXT_REDUCT_SPEEDUP
 #ifdef INT_ATOMS_TYPE
 			//assert(0);
@@ -222,7 +272,6 @@ namespace dynasp
 			//std::cout << POP_CNT(info.int_negatedAtoms) << " / " << POP_CNT(info.getAtoms()) << std::endl;
 		}
 
-		size_t childCount = decomposition.childCount(node);
 
 #ifdef USE_LAME_BASE_JOIN
 #ifndef INT_ATOMS_TYPE
@@ -308,9 +357,18 @@ namespace dynasp
 				{
 					unsigned int h = static_cast<IDynAspTuple *>(&tuple)->joinHash(child,
 #ifdef INT_ATOMS_TYPE
+	#ifdef NON_NORM_JOIN
+																				info.getJoinAtoms()
+	#else
 																				   info.getAtoms()
+	#endif
 #else
-																				   decomposition.bagContent(node)
+
+	#ifdef NON_NORM_JOIN
+			assert(false)	//TODO
+	#else
+																			decomposition.bagContent(node)
+	#endif
 #endif
 							, info);
 
@@ -410,12 +468,15 @@ namespace dynasp
 					{
 						idx = childCount - 1;
 						CertificateDynAspTuple::ExtensionPointer p(childCount);
-						bool pseudoJoin = joined->join(info, its, begs, decomposition, node, p);
+						CertificateDynAspTuple::EJoinResult pseudoJoin = joined->join(info, its, begs, decomposition, node, p);
 
 						#ifdef BASE_JOIN_BOOST
-						if (further && !pseudoJoin)
+						if (further && pseudoJoin != CertificateDynAspTuple::EJR_PSEUDO)
 							continue;
-							#endif
+						#endif
+
+						if (pseudoJoin == CertificateDynAspTuple::EJR_NO)
+							continue;
 #ifndef SIM
 						size_t bucketIndex = generated.bucket(joined);
 						bool isIn = false;
@@ -428,7 +489,12 @@ namespace dynasp
 						if(!isIn)
 						{
 							generated.insert(joined);
+						#ifdef NON_NORM_JOIN
+							//prev.push_back(joined);
 							outputTuples.insert(joined);
+						#else
+							outputTuples.insert(joined);
+						#endif
 						#ifdef EXTENSION_POINTERS_SET_TYPE
 							joined->origins_.insert(p);
 						#else
@@ -457,7 +523,12 @@ namespace dynasp
 							, info));
 #endif
 							DBG(std::endl);
+						#ifdef NON_NORM_JOIN
+							//prev.push_back(joined);
 							outputTuples.insert(joined);
+						#else
+							outputTuples.insert(joined);
+						#endif
 							joined = static_cast<CertificateDynAspTuple*>(create::tuple(false));
 						}
 						else
@@ -806,9 +877,11 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 		{
 
 		IDynAspTuple::ComputedCertificateTuples certTuplesComputed;
-#ifdef SECOND_PASS_COMPRESSED
+//#ifdef SECOND_PASS_COMPRESSED
 		//IDynAspTuple::EvaluatedTuples tupleIntroDone;
 	#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
+		if (dynasp::create::isCompr())
+		{
 		certTuplesComputed.reserve(outputTuples.size());
 		for (unsigned int out = 0; out < outputTuples.size(); ++out)
 		{
@@ -816,8 +889,9 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			auto it = certTuplesComputed.insert(ptr);
 			assert(it.second);
 		}
+		}
 	#endif
-	#endif
+	//#endif
 		size_t maxsize = outputTuples.size();
 		for(IDynAspTuple *tuple : prev)
 		{
@@ -827,13 +901,14 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			//sharp::TupleSet intermediateOutputTuples;
 			if (further)
 			{
-#ifdef SECOND_PASS_COMPRESSED
+				//#ifdef SECOND_PASS_COMPRESSED
+				if (dynasp::create::isCompr())
 				//assert(false);
 				tuple->introduceFurtherCompressed(info, /*tupleIntroDone,*/ certTuplesComputed, outputTuples, maxsize);
-#else
+				else //#else
 				//assert(false);
 				tuple->introduceFurther(info, outputTuples);
-#endif
+				//#endif
 			}
 			else
 				tuple->introduce(info, certTuplesComputed, outputTuples);
@@ -846,10 +921,10 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			delete tuple;
 		}
 
-		#ifdef SECOND_PASS_COMPRESSED
+		//#ifdef SECOND_PASS_COMPRESSED
 		//IDynAspTuple::EvaluatedTuples tupleIntroDone;
 			//const_cast<IDynAspTuple::ComputedCertificateTuples&>(certTuplesComputed).clear();
-		#endif
+		//#endif
 
 		}
 
@@ -870,9 +945,9 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 		bailout:
 #ifdef CLEANUP_SOLUTIONS
 		//return;
-		#ifdef THREE_PASSES
+		/*#ifdef THREE_PASSES
 		//if (further)
-		#endif
+		#endif*/
 		{
 		for(size_t childIndex = 0; childIndex < childCount; ++childIndex)
 		{
@@ -883,12 +958,12 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			{
 				//if (!further)		//first pass
 				{
-					if (static_cast<IDynAspTuple *>(childTuples[pos])->cleanUp(child, decomposition, tuples,
-#ifdef THREE_PASSES
+					if (static_cast<IDynAspTuple *>(childTuples[pos])->cleanUp(child, decomposition, tuples, dynasp::create::passes() >= 3 ? further : true
+/*#ifdef THREE_PASSES
 															   further
 #else
 																			   true
-#endif
+#endif*/
 					))
 						--pos;
 				}
@@ -913,12 +988,12 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 						--pos;
 					}
 				}
-				else*/ if (static_cast<IDynAspTuple *>(outputTuples[pos])->cleanUpRoot(node, info, decomposition, tuples,
-#ifdef THREE_PASSES
+				else*/ if (static_cast<IDynAspTuple *>(outputTuples[pos])->cleanUpRoot(node, info, decomposition, tuples, dynasp::create::passes() >= 3 ? further : true
+/*#ifdef THREE_PASSES
 															   further
 #else
 																			   true
-#endif
+#endif*/
 									))
 				{
 					outputTuples.erase(pos);
@@ -968,12 +1043,12 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 
 	bool DynAspAlgorithm::needAllTupleSets() const
 	{
-		return
-#ifdef SEVERAL_PASSES
+		return dynasp::create::passes() >= 2 ? true : false;
+/*#ifdef SEVERAL_PASSES
 				true
 #else
 			false
-#endif
+#endif*/
 				;
 	}
 

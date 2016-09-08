@@ -250,7 +250,10 @@ namespace dynasp
 
 
 		virtual void merge(CertificateDynAspTuple& mergee, ExtensionPointer *tuple);
-		virtual bool join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>&, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p);
+
+		enum EJoinResult { EJR_NO = 0, EJR_PSEUDO, EJR_NON_PSEUDO, EJR_COUNT };
+
+		virtual EJoinResult join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>&, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p);
 		virtual std::size_t joinHash(htd::vertex_t child, const atom_vector &atoms, const TreeNodeInfo& info) const;
 		virtual size_t joinHash(const atom_vector &atoms, const TreeNodeInfo& info) const;
 //virtual std::size_t joinHash(const vertex_container &atoms) const = 0;

@@ -7,8 +7,6 @@
 #include <dynasp/IDynAspTuple.hpp>
 #include <dynasp/IGroundAspInstance.hpp>
 
-#include <sharp/Benchmark.hpp>
-
 namespace dynasp
 {
 	using sharp::INodeTupleSetMap;
@@ -33,7 +31,9 @@ namespace dynasp
 		mpz_class currentCount = 0;
 		size_t currentOptimalWeight = (size_t)-1; // maximal value of size_t
 
-        sharp::Benchmark::output()->data("SIZE", tuples[node].size());
+		
+		std::cout << "SIZE: " << tuples[node].size() << std::endl;
+
 		/*for(const ITuple &entry : tuples[node])
 			static_cast<const IDynAspTuple &>(entry).isSolution();*/
 

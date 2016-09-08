@@ -35,6 +35,17 @@ namespace dynasp
 		static void set(IHypergraphConverterFactory *factory);
 		static void set(IDynAspTupleFactory *factory);
 		static ConfigurationType get();
+		static bool isNon();
+		static void setNon(bool non);
+		
+		static bool isCompr();
+		static void setCompr(bool non);
+	
+		static bool reductSpeedup();
+		static void setReductSpeedup(bool rs);
+
+		static unsigned passes();
+		static void setPasses(unsigned p);
 
 		static IGroundAspRule *rule();
 		static IGroundAspRule *rule(ConfigurationType type);

@@ -35,7 +35,7 @@ namespace dynasp
 		virtual bool isIntermediateSolution(const TreeNodeInfo& info) const; // { return rules_.size() == 0; }
 		virtual bool merge(const IDynAspTuple &tuple);
 
-		virtual bool join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>&, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p);
+		virtual CertificateDynAspTuple::EJoinResult join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>&, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p);
 		virtual bool isSolution(const TreeNodeInfo& info) const;
 		//virtual mpz_class solutionCount() const;
 		//virtual std::size_t solutionWeight() const;

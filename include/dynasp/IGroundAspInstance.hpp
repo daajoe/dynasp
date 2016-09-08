@@ -35,21 +35,7 @@ namespace dynasp
 				bool negated,
 				std::size_t weight) = 0;
 
-        virtual std::size_t getNumAtoms() = 0;
-        virtual std::size_t getNumRules() = 0;
-        virtual std::size_t getNumConstraints() = 0;
-        virtual std::size_t getNumBinaryConstraints() = 0;
-        virtual std::size_t getNumTernaryConstraints() = 0;
-        virtual std::size_t getNumOtherConstraints() = 0;
-
-        virtual std::size_t getNumCardinalityRules() = 0;
-        virtual std::size_t getNumChoiceRules() = 0;
-        virtual std::size_t getNumDisjunctiveRules() = 0;
-        virtual std::size_t getNumNormalRules() = 0;
-        virtual std::size_t getNumWeightedRules() = 0;
-
-
-        virtual bool isRule(htd::vertex_t vertex) const = 0;
+		virtual bool isRule(htd::vertex_t vertex) const = 0;
 		virtual bool isAtom(htd::vertex_t vertex) const = 0;
 		virtual bool isNegatedAtom(htd::vertex_t vertex) = 0;
 		virtual void setSpeedup(bool s) = 0;
@@ -60,7 +46,8 @@ namespace dynasp
 				const atom_vector &trueAtoms,
 				const atom_vector &falseAtoms, const TreeNodeInfo& info) const = 0;
 
-		//#ifdef INT_ATOMS_TYPE
+
+	//#ifdef INT_ATOMS_TYPE
 		//typedef TreeNodeInfo NodeData;
 		/*struct NodeData {
 			dynasp::atom_vector int_introducedAtoms,

@@ -17,6 +17,7 @@
 
 #include <stack>
 #include <dynasp/IGroundAspInstance.hpp>
+#include <dynasp/create.hpp>
 #include <cassert>
 
 using namespace dynasp;
@@ -67,10 +68,10 @@ void CertificateDynAspTuple::projectPtrs(IDynAspTuple& newTuple)
 	origins_.push_back({&static_cast<CertificateDynAspTuple&>(newTuple)});
 #endif
 
-#ifdef SECOND_PASS_COMPRESSED
+/*#ifdef SECOND_PASS_COMPRESSED
 	//evolution_.insert(evolution_.end(), static_cast<CertificateDynAspTuple&>(newTuple).evolution_.begin(),
 	//static_cast<CertificateDynAspTuple&>(newTuple).evolution_.end());
-#endif
+#endif*/
 	//this->evolution_.push_back(newTuple);
 #endif
 }
@@ -130,15 +131,15 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 	origins_.insert(origins_.end(), make_move_iterator(static_cast<CertificateDynAspTuple&>(merg).origins_.begin()), make_move_iterator(static_cast<CertificateDynAspTuple&>(merg).origins_.end()));
 	//insertMerged(static_cast<const CertificateDynAspTuple&>(merg).origins_, origins_);
 #endif
-#ifdef SECOND_PASS_COMPRESSED
+/*#ifdef SECOND_PASS_COMPRESSED
 	//insertMerged(static_cast<const CertificateDynAspTuple&>(merg).evolution_, evolution_);
-#endif
+#endif*/
 	//return true;
 #endif
 }
 
 
-	bool CertificateDynAspTuple::join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>& beg, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p)
+	CertificateDynAspTuple::EJoinResult CertificateDynAspTuple::join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>& beg, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p)
 	{
 		CertificateDynAspTuple* first = static_cast<CertificateDynAspTuple*>((*beg[0])[its[0]]);
 
@@ -176,7 +177,18 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 		atom_vector t;
 		t.insert(t.end(), atoms_.begin(), atoms_.end());
 		unsigned int weight = info.instance->weight(t, f, info);
+		#ifdef NON_NORM_JOIN
+			assert(false);	//TODO
+		#endif
 	#else
+		#ifdef NON_NORM_JOIN
+			#ifdef INT_ATOMS_TYPE
+				unsigned int weight = info.instance->weight(atoms_ & info.getJoinAtoms(), ~atoms_ & info.getJoinAtoms(), info);
+			#else
+				assert(false);
+			#endif
+		#else	
+
 		unsigned int weight = info.instance->weight(atoms_, 
 			#ifdef INT_ATOMS_TYPE
 				~atoms_ & info.getAtoms()
@@ -184,6 +196,7 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 				f
 			#endif
 			, info);
+		#endif
 	#endif
 		for (unsigned int index = 1; index < its.size(); ++index)
 		{
@@ -195,6 +208,16 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 	#else
 			pseudo |= t->pseudo;
 	#endif
+		#ifdef NON_NORM_JOIN
+
+			child = td.childAtPosition(node, index);
+			#ifdef INT_ATOMS_TYPE
+				atoms_ |= info.transform(t->atoms_, child);
+				reductAtoms_ |= info.transform(t->reductAtoms_, child);
+			#else
+				assert(false);	//TODO
+			#endif
+		#endif
 			//TODO: not naeher bestimmt up to now
 			if (!isPseudo())
 			{
@@ -205,9 +228,9 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 			p[index] = t;
 		}
 	#ifndef USE_PSEUDO
-		return (reductAtoms_ >> (INT_ATOMS_TYPE - 1)) != 0;
+		return (reductAtoms_ >> (INT_ATOMS_TYPE - 1)) != 0 ? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
 	#else
-		return	pseudo;
+		return	pseudo ? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
 	#endif
 	}
 
@@ -335,10 +358,10 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 
 		//TODO: move semantics
 		//TODO: evolution needed?
-	#ifdef SECOND_PASS_COMPRESSED
+	/*#ifdef SECOND_PASS_COMPRESSED
 		//insertMerged(static_cast<CertificateDynAspTuple*>(tupleleft)->evolution_, evolution_);
 		//insertMerged(static_cast<CertificateDynAspTuple*>(tupleright)->evolution_, evolution_);
-	#endif
+	#endif*/
 	#endif
 
 		//std::cout << static_cast<CertificateDynAspTuple*>(tupleleft)->origins_.size()  << "," <<  static_cast<CertificateDynAspTuple*>(tupleright)->origins_.size() << std::endl;
@@ -477,7 +500,17 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 		atom_vector t;
 		t.insert(t.end(), oldTuple->atoms_.begin(), oldTuple->atoms_.end());
 		common_weight = info.instance->weight(t, f, info);
+		#ifdef NON_NORM_JOIN
+			assert(false);	//TODO
+		#endif
 	#else
+		#ifdef NON_NORM_JOIN
+			#ifdef INT_ATOMS_TYPE
+				common_weight = info.instance->weight(oldTuple->atoms_ & info.getJoinAtoms(), ~oldTuple->atoms_ & info.getJoinAtoms(), info);
+			#else
+				assert(false);
+			#endif
+		#else	
 		common_weight = info.instance->weight(oldTuple->atoms_, 
 		#ifdef INT_ATOMS_TYPE
 			~oldTuple->atoms_ & info.getAtoms()
@@ -485,6 +518,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 			f
 		#endif
 		, info);
+		#endif
 	#endif
 	}
 	else if (splitCount)		//EXCHANGE NODE! determine common elements
@@ -670,7 +704,7 @@ std::size_t CertificateDynAspTuple::joinHash(htd::vertex_t child, const atom_vec
 	#else*/
 	//NOTE: info.getAtoms() due to RuleSetDynAspTuple, in other words: ONLY JOIN ATOMS!
 //#ifdef USE_LAME_JOIN
-		return TO_INT(info.transform(atoms_,child) & info.getAtoms()) | (TO_INT(info.transform(reductAtoms_,child) & info.getAtoms()) << (INT_ATOMS_TYPE - 0));
+		return TO_INT(info.transform(atoms_,child) & atoms) | (TO_INT(info.transform(reductAtoms_,child) & atoms) << (INT_ATOMS_TYPE - 0));
 		//return TO_INT(atoms_ & atoms) | (TO_INT(reductAtoms_ & atoms) << (INT_ATOMS_TYPE - 0));
 /*#else
 		return TO_INT(atoms_) | (TO_INT(reductAtoms_) << (INT_ATOMS_TYPE - 0));
@@ -854,12 +888,12 @@ size_t CertificateDynAspTuple::hash() const
 IDynAspTuple *CertificateDynAspTuple::project(const TreeNodeInfo &info, size_t child) const
 {
 	CertificateDynAspTuple *newTuple = clone(); //new SimpleDynAspTuple(/*false*/);
-	const CertificateDynAspTuple &me =
-#ifdef SEVERAL_PASSES
+	const CertificateDynAspTuple &me = dynasp::create::passes() >= 2 ? *this : *getClone()
+/*#ifdef SEVERAL_PASSES
 			*this
 #else
 			*getClone()
-#endif
+#endif*/
 			;
 
 #ifdef INT_ATOMS_TYPE
@@ -1328,8 +1362,8 @@ CertificateDynAspTuple::ESubsetRelation CertificateDynAspTuple::checkRelationExt
 {
 	CertificateDynAspTuple::ESubsetRelation rel = CertificateDynAspTuple::ESR_NONE;
 #ifdef INT_ATOMS_TYPE
-	#if defined(USE_REDUCT_SPEEDUP) && defined(SECOND_PASS_COMPRESSED)
-
+	//#if defined(USE_REDUCT_SPEEDUP) && defined(SECOND_PASS_COMPRESSED)
+	if (dynasp::create::isCompr() && dynasp::create::reductSpeedup()) {
 		//get everything which is in the atoms, but not within other.reductatoms or other.atom
 		//info.getAtoms() due to RuleSetDynAspTuple
 		if ((atoms_ & ~(other.reductAtoms_ | other.atoms_) & info.int_negatedAtoms) == 0)
@@ -1338,13 +1372,14 @@ CertificateDynAspTuple::ESubsetRelation CertificateDynAspTuple::checkRelationExt
 			//if (POP_CNT(other.atoms_) + POP_CNT(other.reductAtoms_ & info.getAtoms()) <= POP_CNT(atoms_))
 			if (POP_CNT(other.atoms_ & info.getAtoms()) + POP_CNT(other.reductAtoms_ & info.getAtoms()) + POP_CNT(atoms_ & info.getAtoms() & ~info.int_negatedAtoms & ~other.atoms_) == POP_CNT(atoms_ & info.getAtoms()))
 				rel = checkRelation(other, info, false);
-	#else
+	} else { //#else
 		//NOTE: we make other.reductAtoms_ & info.getAtoms() to project away the MSB for pseudo solution!
 		if (POP_CNT(other.atoms_ & info.getAtoms()) + POP_CNT(other.reductAtoms_ & info.getAtoms()) == POP_CNT(atoms_ & info.getAtoms()))	//partition!
 			rel = checkRelation(other, info, false);
-	#endif
+	} //#endif
 #else
-#if defined(USE_REDUCT_SPEEDUP) && defined(SECOND_PASS_COMPRESSED)
+	//#if defined(USE_REDUCT_SPEEDUP) && defined(SECOND_PASS_COMPRESSED)
+	if (dynasp::create::isCompr() && dynasp::create::reductSpeedup()) {
 	/*atom_set nondefaults;
 	unsigned int nonDefaultNegated = 0;
 	if (other.atoms_.size() + other.reductAtoms_.size() > atoms_.size())
@@ -1370,12 +1405,12 @@ CertificateDynAspTuple::ESubsetRelation CertificateDynAspTuple::checkRelationExt
 		rel = checkRelation(other, info, false);
 		/*&& checkRelation(other, false) >= CertificateDynAspTuple::ESR_EQUAL)
 		rel = checkRelationExt(other, atoms_, nondefaults, false);*/
-#else
+	} else { //#else
 	//assert(false);
 	//TODO: why wrong? why UNCOMMENT?
 	if (other.atoms_.size() + other.reductAtoms_.size() == atoms_.size())
 		rel = checkRelation(other, info, false);
-#endif
+	} //#endif
 #endif
 	return rel;
 }

@@ -31,7 +31,7 @@ namespace dynasp
 	class DYNASP_LOCAL LParseLexer : public LParseFlexLexer
 	{
 	public:
-		LParseLexer(FLEX_STD istream *in, FLEX_STD ostream *out);
+		LParseLexer(FLEX_STD istream *in = NULL, FLEX_STD ostream *out = NULL);
 		virtual ~LParseLexer();
 
 		virtual token_type lex(semantic_type *yylval, location_type *yylloc);

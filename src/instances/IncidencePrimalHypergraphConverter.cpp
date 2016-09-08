@@ -9,6 +9,8 @@
 #include <typeinfo>
 #include <stdexcept>
 
+extern htd::LibraryInstance* inst;
+
 namespace dynasp
 {
 	using htd::vertex_t;
@@ -37,7 +39,8 @@ namespace dynasp
 	IHypergraph *IncidencePrimalHypergraphConverter::convert(
 			const GroundAspInstance &instance) const
 	{
-		HypergraphFactory &factory = HypergraphFactory::instance();
+		HypergraphFactory factory(inst);
+		//HypergraphFactory &factory = HypergraphFactory::instance();
 		IMutableHypergraph *hypergraph = factory.getHypergraph();
 
 		for(size_t vertex = instance.maxAtom_; vertex > 0; --vertex)

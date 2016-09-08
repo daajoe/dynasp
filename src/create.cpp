@@ -21,7 +21,9 @@ namespace dynasp
 {
 	namespace
 	{
-		create::ConfigurationType type_ = create::INCIDENCE_FULLTUPLE;
+		create::ConfigurationType type_ =  create::PRIMAL_SIMPLETUPLE;
+		bool nonnorm_ = false, redspeed_ = true, compr_ = true;
+		unsigned passes_ = 3;
 		IGroundAspRuleFactory *ruleFactory_ = nullptr;
 		IGroundAspInstanceFactory *instanceFactory_ = nullptr;
 		IHypergraphConverterFactory *hypergraphConverterFactory_ = nullptr;
@@ -31,6 +33,46 @@ namespace dynasp
 	create::ConfigurationType create::get()
 	{
 		return type_;
+	}
+
+	unsigned create::passes()
+	{
+		return passes_;
+	}
+
+	void create::setPasses(unsigned p)
+	{
+		passes_ = p;
+	}
+
+	bool create::reductSpeedup()
+	{
+		return redspeed_;
+	}
+
+	void create::setReductSpeedup(bool rs)
+	{
+		redspeed_ = rs;
+	}
+	
+	bool create::isCompr()
+	{
+		return compr_;
+	}
+
+	void create::setCompr(bool c)
+	{
+		compr_ = c;
+	}
+
+	bool create::isNon()
+	{
+		return nonnorm_;
+	}
+
+	void create::setNon(bool non)
+	{
+		nonnorm_ = non;
 	}
 
 	void create::set(ConfigurationType type)

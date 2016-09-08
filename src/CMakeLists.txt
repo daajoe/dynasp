@@ -1,32 +1,23 @@
-include_directories(${PROJECT_SOURCE_DIR}/include)
-aux_source_directory(. SRC_LIST)
+include_directories(${PROJECT_SOURCE_DIR}/include) # ${CMAKE_SOURCE_DIR})
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
 
 #TODO:
-#ExternalProject_Add(htd
-#        URL ...htd
-#        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/htd
-#        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-#        )
-
 #ExternalProject_Get_Property(htd install_dir)
 #include_directories(${install_dir}/include)
 
 #add_dependencies(project_b_exe project_a)
 #target_link_libraries(project_b_exe ${install_dir}/lib/alib.lib)
 
-
+#TODO: osx
 #write_compiler_detection_header(
 #        FILE "${PROJECT_SOURCE_DIR}/include/dynasp/CompilerDetection.hpp"
 #        PREFIX DYNASP
 #        COMPILERS GNU Clang AppleClang MSVC
 #        FEATURES cxx_noexcept cxx_override cxx_lambdas
 #)
-
-#configure_file("${PROJECT_SOURCE_DIR}/cmake/Id.hpp.in" "${PROJECT_SOURCE_DIR}/include/dynasp/Id.hpp")
+#check_include_file_cxx(DYNASP/CompilerDetection.hpp DYNASP_HAVE_COMPILER_DETECTION)
 
 set(CMAKE_REQUIRED_INCLUDES "${PROJECT_SOURCE_DIR}/include")
-
-#check_include_file_cxx(DYNASP/CompilerDetection.hpp DYNASP_HAVE_COMPILER_DETECTION)
 
 set(DYNASP_SOVERSION_INTERFACE 0)
 set(DYNASP_SOVERSION_REVISION 0)
@@ -35,14 +26,60 @@ set(DYNASP_SOVERSION ${DYNASP_SOVERSION_INTERFACE}.${DYNASP_SOVERSION_REVISION}.
 
 file(GLOB_RECURSE HEADER_LIST ${PROJECT_SOURCE_DIR}/include/*.hpp)
 
-add_executable(dynasp2 ${SRC_LIST} ${HEADER_LIST})
+set(DYNASP_MAIN_VERSION_MAJOR 2)
+set(DYNASP_MAIN_VERSION_MINOR 0)
+set(DYNASP_MAIN_VERSION_PATCH 0)
+set(DYNASP_MAIN_VERSION ${DYNASPMAIN_VERSION_MAJOR}.${DYNASP_MAIN_VERSION_MINOR}.${DYNASP_MAIN_VERSION_PATCH})
+
+find_package(HTD REQUIRED)
+find_package(SHARP REQUIRED)
+find_package(GMP REQUIRED)
+find_package(BISON 2.4.1 REQUIRED)
+find_package(FLEX 2.5.35 REQUIRED)
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+BISON_TARGET(LParseParser parsers/LParseBisonParser.yy ${CMAKE_CURRENT_BINARY_DIR}/parsers/LParseBisonParser.cc)
+FLEX_TARGET(LParseLexer parsers/LParseLexer.ll ${CMAKE_CURRENT_BINARY_DIR}/parsers/LParseLexer.cc)
+ADD_FLEX_BISON_DEPENDENCY(LParseLexer LParseParser)
+
+LINK_DIRECTORIES( ${SHARP_LIBRARIES} )
+LINK_DIRECTORIES( ${HTD_LIBRARIES} )
+
+set(CMAKE_REQUIRED_INCLUDES "${PROJECT_SOURCE_DIR}/include")
+file(GLOB_RECURSE HEADER_LIST ${PROJECT_SOURCE_DIR}/include/*.hpp)
+
+file(GLOB_RECURSE DYNASP_SOURCES "*.cpp")
+
+file(GLOB_RECURSE DYNASP_GEN_HEADERS "*.hh")
+file(GLOB_RECURSE DYNASP_HEADERS "src/*.h")
+file(GLOB_RECURSE DYNASP_GEN_SOURCES "${PROJECT_SOURCE_DIR}/src/parsers/*.cc")
+
+file(GLOB_RECURSE APP_SRC *.cpp)
+add_library(dynasp ${DYNASP_SOURCES} ${HEADER_LIST} ${DYNASP_GEN_HEADERS} ${DYNASP_GEN_SOURCES} ${BISON_LParseParser_OUTPUTS} ${FLEX_LParseLexer_OUTPUTS})
+
+set_property(TARGET dynasp PROPERTY CXX_STANDARD 11)
+set_property(TARGET dynasp PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET dynasp PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+set_target_properties(dynasp PROPERTIES VERSION ${DYNASP_SOVERSION} SOVERSION ${DYNASP_SOVERSION_INTERFACE})
+
+set_target_properties(dynasp
+        PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        )
+
+target_link_libraries(dynasp htd sharp htd)
+
+add_executable(dynasp2 main.cpp ${BISON_LParseParser_OUTPUTS} ${FLEX_LParseLexer_OUTPUTS})
+target_link_libraries(dynasp2 htd gmp sharp dynasp )
 
 set_property(TARGET dynasp2 PROPERTY CXX_STANDARD 11)
 set_property(TARGET dynasp2 PROPERTY CXX_STANDARD_REQUIRED ON)
-
 set_property(TARGET dynasp2 PROPERTY POSITION_INDEPENDENT_CODE 1)
-
-set_target_properties(dynasp2 PROPERTIES VERSION ${DYNASP_SOVERSION} SOVERSION ${DYNASP_SOVERSION_INTERFACE})
 
 set_target_properties(dynasp2
         PROPERTIES
@@ -50,16 +87,3 @@ set_target_properties(dynasp2
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )
-
-if (UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra -Ddynasp_EXPORTS")
-endif (UNIX)
-
-if (BUILD_SHARED_LIBS)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDYNASP_SHARED_LIBRARY")
-endif (BUILD_SHARED_LIBS)
-
-#TODO: output dynasp binary
-
-install(TARGETS dynasp2 DESTINATION bin)
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/dynasp" DESTINATION include)

@@ -36,6 +36,6 @@ namespace dynasp
 
 #include <dynasp/create.hpp>
 
-#include "LParseBisonParser.hh"
+#include <parsers/LParseBisonParser.hh>
 
 #endif /* DYNASP_PARSERS_LPARSEBISONPARSER_H_ */

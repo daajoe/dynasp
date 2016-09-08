@@ -5,7 +5,7 @@
 
 #include "LParseParser.hpp"
 
-#include "LParseBisonParser.hpp"
+#include <parsers/LParseBisonParser.hpp>
 #include "LParseLexer.hpp"
 
 #include "../instances/GroundAspInstance.hpp"

@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(dynasp)
+project(dynasp2)
 
 set(CPACK_GENERATOR "STGZ;TGZ;TZ;ZIP")
 set(CPACK_SOURCE_GENERATOR "STGZ;TGZ;TZ;ZIP")
-#set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A small but efficient C++ library for computing (customized) tree and hypertree decompositions.")
-#set(CPACK_PACKAGE_VENDOR "Michael Abseher (abseher@dbai.tuwien.ac.at)")
-#set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
-#set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
-#set(CPACK_PACKAGE_VERSION_MAJOR "0")
-#set(CPACK_PACKAGE_VERSION_MINOR "9")
-#set(CPACK_PACKAGE_VERSION_PATCH "9")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A dynamic programming based counting ASP solver.")
+set(CPACK_PACKAGE_VENDOR "Michael Morak & Markus Hecher & Johannes Fichte (lastname@dbai.tuwien.ac.at)")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
+set(CPACK_PACKAGE_VERSION_MAJOR "2")
+set(CPACK_PACKAGE_VERSION_MINOR "0")
+set(CPACK_PACKAGE_VERSION_PATCH "0")
 
 include(CPack)
 include(CTest)
@@ -23,9 +23,9 @@ if (NOT CMAKE_BUILD_TYPE)
             FORCE )
 endif()
 
-if (NOT DEFINED BUILD_SHARED_LIBS)
-    set(BUILD_SHARED_LIBS ON)
-endif()
+#if (NOT DEFINED BUILD_SHARED_LIBS)
+#    set(BUILD_SHARED_LIBS ON)
+#endif()
 
 if (DEFINED DYNASP_DEBUG_OUTPUT)
     if (DYNASP_DEBUG_OUTPUT)
@@ -41,9 +41,14 @@ if (NOT DEFINED BUILD_TESTING)
     set(BUILD_TESTING OFF)
 endif()
 
+#TODO
+#subdirs(htd/)
+#add_library(libsharp)
+#subdirs(sharp/)
+
 subdirs(src/)
 
-#subdirs(test)
+#       subdirs(test)
 
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
@@ -60,4 +65,4 @@ configure_file(
 #            )
 #endif(DOXYGEN_FOUND)
 
-add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+#add_custom_target(uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)

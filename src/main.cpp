@@ -40,7 +40,7 @@ namespace {
 
         DynAspOptions(int argc, char *argv[]) {
             int opt;
-            while ((opt = getopt(argc, argv, "mp:ornvhbds:c:t:l:")) != -1)
+            while ((opt = getopt(argc, argv, "mp:oernvhbds:c:t:l:")) != -1)
                 switch (opt) {
                     case 'o':
                         this->tdopt = true;
@@ -76,19 +76,15 @@ namespace {
                     case 'h':
                         this->displayHelp = true;
                         break;
-
-#TODO: duplicate parameter
                     case 'j':
                         this->printJSON = true;
                         break;
-                    case 'p':
+                    case 'e':
                         this->displayPCS = true;
                         break;
-
                     case 'd':
                         this->decompositionOnly = true;
                         break;
-
                     case 't':
                         this->customTreeDecomposition = true;
                         if (!std::strcmp(optarg, "mf"))
@@ -98,18 +94,15 @@ namespace {
                         else
                             this->error = true;
                         break;
-
                     case 'b':
                         if (this->printBenchmarks)
                             this->printCSV = true;
                         this->printBenchmarks = true;
                         break;
-
                     case 's':
                         this->useSeed = true;
                         this->seed = (unsigned) strtol(optarg, NULL, 10);
                         break;
-
                     case 'c':
                         this->customConfiguration = true;
                         switch (strtol(optarg, NULL, 10)) {

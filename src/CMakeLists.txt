@@ -89,4 +89,4 @@ set_target_properties(dynasp2
         )
 
 
-install(TARGETS dynasp DESTINATION bin)
+install(TARGETS dynasp2 DESTINATION bin)

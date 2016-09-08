@@ -340,6 +340,63 @@ int main(int argc, char *argv[]) {
         if (!instance.get())
             exit(EXIT_PARSING_ERROR);
 
+//  TODO:
+//        ["Equivalences", 1],
+//        ["Atom-Atom_Equivalences", 0],
+//        ["Body-Body_Equivalences", 0],
+//        ["Other_Equivalences", 1],
+//        ["Frac_Atom-Atom_Equivalences", 0.0000],
+//        ["Frac_Body-Body_Equivalences", 0.0000],
+//        ["Frac_Other_Equivalences", 1.0000],
+//        ["Created_Bodies", 1],
+
+// TODO: ??
+//        ["Assigned_Problem_Variables", 1],
+//        ["Nodes_in_Positive_BADG", 0],
+
+// TODO: simple todos
+//        ["Frac_Neg_Body", 1.0000],
+//        ["Frac_Pos_Body", 1.0000],
+
+//TODO:
+//        ["Problem_Variables", 2],
+//        ["Free_Problem_Variables", 1],
+//        ["SCCS", 0],
+//        ["Tight", 1],
+
+        output->data("Static","Program_Atoms", instance.get()->getNumAtoms());
+        output->data("Static","Rules", instance.get()->getNumRules());
+//        ["Frac_Unary_Rules", 0.5000],
+//        ["Frac_Binary_Rules", 0.5000],
+//        ["Frac_Ternary_Rules", 0.0000],
+
+        output->data("Static","Constraints", instance.get()->getNumConstraints());
+        output->data("Static","Binary_Constraints", instance.get()->getNumBinaryConstraints());
+        output->data("Static","Ternary_Constraints", instance.get()->getNumTernaryConstraints());
+        output->data("Static","Other_Constraints", instance.get()->getNumOtherConstraints());
+
+        output->data("Static","Cardinality_Rules", instance.get()->getNumCardinalityRules());
+        output->data("Static","Choice_Rules", instance.get()->getNumChoiceRules());
+        output->data("Static","Disjunctive_Rules", instance.get()->getNumDisjunctiveRules());
+        output->data("Static","Normal_Rules", instance.get()->getNumNormalRules());
+        output->data("Static","Weight_Rules", instance.get()->getNumWeightedRules());
+
+        //TODO: ??
+        output->data("Static","Constraints/Vars", (float) instance.get()->getNumConstraints()/ (float) instance.get()->getNumRules());
+
+        output->data("Static","Frac_Integrity_Rules", (float) instance.get()->getNumConstraints()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Binary_Constraints", (float) instance.get()->getNumBinaryConstraints()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Ternary_Constraints", (float) instance.get()->getNumTernaryConstraints()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Other_Constraints", (float) instance.get()->getNumOtherConstraints()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Cardinality_Rules", (float) instance.get()->getNumCardinalityRules()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Choice_Rules", (float) instance.get()->getNumChoiceRules()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Disjunctive_Rules", (float) instance.get()->getNumDisjunctiveRules()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Normal_Rules", (float) instance.get()->getNumNormalRules()/ (float) instance.get()->getNumRules());
+        output->data("Static","Frac_Weight_Rules", (float) instance.get()->getNumWeightedRules()/ (float) instance.get()->getNumRules());
+
+        output->data("Static","Test", (size_t) 2);
+
+
         output->info("Initializing solver...");
         std::unique_ptr <htd::ITreeDecompositionAlgorithm> tdAlgorithm(
                 htd::TreeDecompositionAlgorithmFactory::instance()
@@ -390,7 +447,7 @@ int main(int argc, char *argv[]) {
         output->info("Decomposing...");
         std::unique_ptr <htd::ITreeDecomposition> td(
                 solver->decompose(*instance, opts.weak, opts.children, opts.tdopt));
-        output->data("treewidth", td->maximumBagSize() - 1);
+        output->preproc_data("treewidth", td->maximumBagSize() - 1);
 
         if (!opts.decompositionOnly) {
             output->info("Solving... ");

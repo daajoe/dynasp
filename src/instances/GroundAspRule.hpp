@@ -25,8 +25,18 @@ namespace dynasp
 
 		virtual bool isPosWeightedAtom(atom_t atom) const;
 		virtual bool isNegWeightedAtom(atom_t atom) const;
-		virtual bool hasWeightedBody() const;
+        virtual bool hasConstraint() const;
+        virtual bool hasBinaryConstraint() const;
+        virtual bool hasTernaryConstraint() const;
+        virtual bool hasOtherConstraint() const;
+
+        virtual bool hasCardinalityBody() const;
 		virtual bool hasChoiceHead() const;
+		virtual bool hasHead() const;
+        virtual bool hasDisjunctiveHead() const;
+        virtual bool hasNormalHead() const;
+        virtual bool hasWeightedBody() const;
+
 		virtual bool isHeadAtom(atom_t atom) const;
 		virtual bool isPositiveBodyAtom(atom_t atom) const;
 		virtual bool isNegativeBodyAtom(atom_t atom) const;

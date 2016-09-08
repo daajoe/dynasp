@@ -52,7 +52,103 @@ namespace dynasp
 		rules_.push_back(rule);
 	}
 
-	bool GroundAspInstance::isNegatedAtom(htd::vertex_t vertex)
+    std::size_t GroundAspInstance::getNumAtoms(){
+        return atomNames_.size();
+    }
+
+    std::size_t GroundAspInstance::getNumRules(){
+        return rules_.size();
+    }
+
+    std::size_t GroundAspInstance::getNumConstraints(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasConstraint()){
+                i++;
+            }
+        }
+        return i;
+    }
+    std::size_t GroundAspInstance::getNumBinaryConstraints(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasBinaryConstraint()){
+                i++;
+            }
+        }
+        return i;
+    }
+    std::size_t GroundAspInstance::getNumTernaryConstraints(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasTernaryConstraint()){
+                i++;
+            }
+        }
+        return i;
+    }
+    std::size_t GroundAspInstance::getNumOtherConstraints(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasOtherConstraint()){
+                i++;
+            }
+        }
+        return i;
+    }
+
+
+    std::size_t GroundAspInstance::getNumCardinalityRules(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasCardinalityBody()){
+                i++;
+            }
+        }
+        return i;
+    }
+
+    std::size_t GroundAspInstance::getNumChoiceRules() {
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if (rule->hasChoiceHead()) {
+                i++;
+            }
+        }
+        return i;
+    }
+
+    std::size_t GroundAspInstance::getNumDisjunctiveRules() {
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if (rule->hasDisjunctiveHead()) {
+                i++;
+            }
+        }
+        return i;
+    }
+
+    std::size_t GroundAspInstance::getNumNormalRules(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasNormalHead()){
+                i++;
+            }
+        }
+        return i;
+    }
+
+    std::size_t GroundAspInstance::getNumWeightedRules(){
+        int i = 0;
+        for (auto &&rule :rules_) {
+            if(rule->hasWeightedBody()){
+                i++;
+            }
+        }
+        return i;
+    }
+
+    bool GroundAspInstance::isNegatedAtom(htd::vertex_t vertex)
 	{
 		if (!speed) // || create::get() == create::INCIDENCEPRIMAL_RULESETTUPLE)
 			return true;
@@ -195,5 +291,7 @@ namespace dynasp
 #endif
 		return weight;
 	}
+
+
 
 }// namespace dynasp

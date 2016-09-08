@@ -36,6 +36,12 @@ namespace dynasp
 
 
 			atom_vector getAtoms() const { return int_introducedAtoms | int_rememberedAtoms; }
+			#ifdef NON_NORM_JOIN
+			atom_vector int_joinAtoms, int_joinRules;
+
+			atom_vector getJoinAtoms() const { return int_joinAtoms; }
+			atom_vector getJoinRules() const { return int_joinRules; }
+			#endif
 			atom_vector getRules() const { return int_introducedRules | int_rememberedRules; }
 		#endif
 
@@ -55,6 +61,9 @@ namespace dynasp
 #ifdef INT_ATOMS_TYPE
 		//,/*int_introducedAtoms(iia), int_rememberedAtoms(ira),*/ atomAtPosition(aap)
 		,int_introducedAtoms(0), int_rememberedAtoms(0), int_negatedAtoms(0), atomAtPosition(aap), int_introducedRules(0), int_rememberedRules(0), ruleAtPosition(rap)
+		#ifdef NON_NORM_JOIN
+			,int_joinAtoms(0), int_joinRules(0)
+		#endif
 #endif
 		{}
 

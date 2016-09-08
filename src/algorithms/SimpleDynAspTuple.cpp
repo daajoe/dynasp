@@ -8,6 +8,7 @@
 #include "SimpleDynAspTuple.hpp"
 #include "../../include/dynasp/IDynAspTuple.hpp"
 #include <dynasp/IGroundAspInstance.hpp>
+#include <dynasp/create.hpp>
 
 #include <stack>
 
@@ -180,12 +181,12 @@ namespace dynasp
 
 		size_t numIntro = info.introducedAtoms.size();
 		//TODO: note indirection via getClone();
-		const SimpleDynAspTuple &me = *static_cast<const SimpleDynAspTuple*>(
-	#ifdef SEVERAL_PASSES
+		const SimpleDynAspTuple &me = *static_cast<const SimpleDynAspTuple*>(dynasp::create::passes() >= 2 ? this : getClone()
+	/*#ifdef SEVERAL_PASSES
 				this
 	#else
 				getClone()
-	#endif
+	#endif*/
 				);
 		atom_vector trueAtoms, reductFalseAtoms, falseAtoms;
 	#ifndef INT_ATOMS_TYPE
@@ -244,11 +245,11 @@ namespace dynasp
 	#endif
 			for(size_t reduct = 0; reduct < (1u << sz); ++reduct)
 			{
-	#ifdef THREE_PASSES
+	//#ifdef THREE_PASSES
 	//#ifdef NO_COMPUTE
-				if (reduct > 0)
+				if (dynasp::create::passes() >= 3 && reduct > 0)
 					break;
-	#endif
+	//#endif
 	//#endif
 				atom_vector newFalseAtoms
 			#ifdef INT_ATOMS_TYPE	
@@ -342,9 +343,10 @@ namespace dynasp
 		#endif
 	#endif
 
-				#ifdef THREE_PASSES
-					assert(!newTuple->isPseudo());
-				#endif
+				//#ifdef THREE_PASSES
+					if (dynasp::create::passes() >= 3)
+						assert(!newTuple->isPseudo());
+				//#endif
 					//pseudo solutions have 0 solutions, shall be removed later...
 				#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 					newTuple->solutions_ =

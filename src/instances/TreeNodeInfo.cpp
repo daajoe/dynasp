@@ -39,6 +39,10 @@ namespace dynasp
 		{
 			atom_vector childData = 0;
 			TreeNodeInfo& childInfo = instance->getNodeData(child);
+			/*#ifdef INT_ATOMS_TYPE
+			if (getRules() == childInfo.getRules())
+				return atoms;
+			#endif*/
 			size_t pos = introducedAtoms.size() + rememberedAtoms.size() + introducedRules.size();
 			DBG("rememb "); DBG_COLL(rememberedRules);
 			for (auto & i : rememberedRules)
@@ -70,6 +74,10 @@ namespace dynasp
 		{
 			atom_vector childData = 0;
 			TreeNodeInfo& childInfo = instance->getNodeData(child);
+			/*#ifdef INT_ATOMS_TYPE
+			if (getAtoms() == childInfo.getAtoms())
+				return atoms & getAtoms();
+			#endif*/
 			size_t pos = introducedAtoms.size();
 			DBG("rememb "); DBG_COLL(rememberedAtoms);
 			for (auto & i : rememberedAtoms)

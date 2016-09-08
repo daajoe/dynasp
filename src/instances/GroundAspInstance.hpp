@@ -75,7 +75,7 @@ namespace dynasp
 		std::unordered_set<atom_t> negatives_;
 	//#ifdef INT_ATOMS_TYPE
 		std::unordered_map<size_t, TreeNodeInfo> nodeData;
-		bool speed;
+		//bool speed;
 	//#endif
 	public:
 		friend class PrimalHypergraphConverter;

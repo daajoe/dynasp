@@ -150,7 +150,7 @@ namespace dynasp
 
     bool GroundAspInstance::isNegatedAtom(htd::vertex_t vertex)
 	{
-		if (!speed) // || create::get() == create::INCIDENCEPRIMAL_RULESETTUPLE)
+		if (!dynasp::create::reductSpeedup()) //speed) // || create::get() == create::INCIDENCEPRIMAL_RULESETTUPLE)
 			return true;
 		//std::cout << "isNegatedAtom " << vertex << std::endl;
 		if (negativesComputed_)
@@ -186,9 +186,9 @@ namespace dynasp
 		return result;
 	}
 
-	void GroundAspInstance::setSpeedup(bool s)
+	void GroundAspInstance::setSpeedup(bool)
 	{
-		speed = s;
+		//speed = s;
 		isNegatedAtom(1);
 	}
 

@@ -9,6 +9,7 @@
 #include <dynasp/IGroundAspInstance.hpp>
 #include <cassert>
 #include <stack>
+#include <dynasp/create.hpp>
 
 namespace dynasp
 {
@@ -972,11 +973,11 @@ namespace dynasp
 
 			for(size_t reduct = 0; reduct < (1u << sz); ++reduct)
 			{
-	#ifdef THREE_PASSES
+	//#ifdef THREE_PASSES
 	//#ifdef NO_COMPUTE
-				if (reduct > 0)
+				if (dynasp::create::passes() >= 3 && reduct > 0)
 					break;
-	#endif
+	//#endif
 				atom_vector newFalseAtoms
 				#ifdef INT_ATOMS_TYPE
 					= 0
@@ -1066,9 +1067,10 @@ namespace dynasp
 							;
 						#endif
 					#endif
-					#ifdef THREE_PASSES
+					//#ifdef THREE_PASSES
+					if (dynasp::create::passes() >= 3)
 						assert(!newTuple->isPseudo());
-					#endif
+					//#endif
 					std::pair<IDynAspTuple::ComputedCertificateTuples::iterator, bool> found = certTuplesComputed.insert(newTuple);
 					
 					newTuple->weight_ = weight_ + info.instance->weight(newTrueAtoms, newFalseAtoms, info);
@@ -1151,8 +1153,9 @@ namespace dynasp
 	}
 
 
-	bool RuleSetDynAspTuple::join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>& beg, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p)
+	CertificateDynAspTuple::EJoinResult RuleSetDynAspTuple::join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>& beg, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p)
 	{
+
 		RuleSetDynAspTuple* first = static_cast<RuleSetDynAspTuple*>((*beg[0])[its[0]]);
 
 	#ifdef INT_ATOMS_TYPE
@@ -1193,7 +1196,20 @@ namespace dynasp
 		atom_vector t;
 		t.insert(t.end(), atoms_.begin(), atoms_.end());
 		unsigned int weight = info.instance->weight(t, f, info);
+		#ifdef NON_NORM_JOIN
+			assert(false);	//TODO
+		#endif
+
 	#else
+		#ifdef NON_NORM_JOIN
+			#ifdef INT_ATOMS_TYPE
+				unsigned int weight = info.instance->weight(atoms_ & info.getJoinAtoms(), ~atoms_ & info.getJoinAtoms(), info);
+			#else
+				assert(false);
+			#endif
+		#else	
+
+
 		unsigned int weight = info.instance->weight(atoms_, 
 		#ifdef INT_ATOMS_TYPE	
 			~atoms_ & info.getAtoms()
@@ -1201,10 +1217,38 @@ namespace dynasp
 			f
 		#endif
 															, info);
+														#endif
 	#endif
 	#ifdef INT_ATOMS_TYPE
-		atom_vector atoms = atoms_;
+		atom_vector atoms = atoms_, leftTrueAtoms = 0, leftFalseAtoms = 0, leftReductFalseAtoms = 0;
 		atoms_ = info.rule_transform(first->atoms_, child);
+	
+		if (dynasp::create::isNon())	//non-norm, size 2 join
+		{
+			//assert(false);
+			leftTrueAtoms        = atoms                          & ~info.getJoinAtoms(),
+			leftFalseAtoms       = ~atoms       & info.transform(child) /*&  info.getAtoms()*/ & ~info.getJoinAtoms() & ~reductAtoms_,
+			leftReductFalseAtoms = reductAtoms_                   & ~info.getJoinAtoms();
+
+			if (POP_CNT(atoms_) < POP_CNT(info.instance->getNodeData(child).getRules() & first->atoms_))
+				return CertificateDynAspTuple::EJR_NO;
+		}
+	#endif
+	#ifdef NON_NORM_JOIN
+
+		atom_vector rules = 0, rules_r = 0, rightTrueAtoms = 0, rightFalseAtoms = 0, rightReductFalseAtoms = 0, rtrans = 0;
+		if (dynasp::create::isNon())
+		{
+		#ifdef INT_ATOMS_TYPE
+			rules = /*atoms |=*/ atoms_ & ~info.getJoinRules();
+			atoms_ &= info.getJoinRules();
+		#else
+			assert(false);
+		#endif
+			assert(its.size() == 2);
+			assert(info.int_introducedRules == 0);
+			assert(info.int_introducedAtoms == 0);
+		}
 	#endif
 		for (unsigned int index = 1; index < its.size(); ++index)
 		{
@@ -1215,10 +1259,21 @@ namespace dynasp
 	#else
 			pseudo |= t->pseudo;
 	#endif
+	
 			#ifdef INT_ATOMS_TYPE
-
-			child = td.childAtPosition(node, index);
-				atoms_ &= info.rule_transform(t->atoms_, child); // & info.getRules()) | ~info.getRules());
+				child = td.childAtPosition(node, index);
+				atom_vector trans = info.rule_transform(t->atoms_, child);
+				#ifdef NON_NORM_JOIN
+					if (dynasp::create::isNon())
+					{
+						if (POP_CNT(trans) < POP_CNT(info.instance->getNodeData(child).getRules() & t->atoms_))
+							return CertificateDynAspTuple::EJR_NO;
+						
+						//atoms_ &= trans /*& info.getJoinRules()*/;
+						rules_r = /*atoms |=*/ trans & ~info.getJoinRules();
+					}
+				#endif
+				atoms_ &= trans; // & info.getRules()) | ~info.getRules());
 			#else
 				for (const auto& r : t->rules_)
 				{
@@ -1232,7 +1287,31 @@ namespace dynasp
 							visits.erase(it);
 					}
 				}
+				#ifdef NON_NORM_JOIN
+					assert(false); //TODO
+				#endif
 			#endif
+		
+		#ifdef NON_NORM_JOIN
+			//child = td.childAtPosition(node, index);
+
+			if (dynasp::create::isNon())
+			{
+			#ifdef INT_ATOMS_TYPE
+				atoms |= (trans = info.transform(t->atoms_, child));
+				reductAtoms_ |= (rtrans = info.transform(t->reductAtoms_, child));
+				
+				rightTrueAtoms        = trans                    & ~info.getJoinAtoms();
+				rightFalseAtoms       = ~trans & info.transform(child) /*  & info.getAtoms()*/ & ~info.getJoinAtoms() & ~rtrans;
+				rightReductFalseAtoms = rtrans                   & ~info.getJoinAtoms();
+
+			#else
+				//child = td.childAtPosition(node, index);
+				assert(false);	//TODO
+			#endif
+			}
+		#endif
+
 			//TODO: nicht naeher bestimmt up to now
 			if (!isPseudo())
 			{
@@ -1242,6 +1321,64 @@ namespace dynasp
 			}
 			p[index] = t;
 		}
+
+		#ifdef NON_NORM_JOIN
+
+		if (dynasp::create::isNon())// && rightTrueAtoms | rightFalseAtoms | rightReductFalseAtoms | leftTrueAtoms | leftFalseAtoms | leftReductFalseAtoms)
+		{
+		#ifdef INT_ATOMS_TYPE
+
+		/*atom_vector leftTrueAtoms =  atoms_ & info.getAtoms() & ~info.getJoinAtoms(),
+			~atoms_       & info.getAtoms() & ~info.getJoinAtoms() & ~reductAtoms_,
+			reductAtoms_       & info.getAtoms() & ~info.getJoinAtoms(),
+
+			other.atoms_ & info.getAtoms() & ~info.getJoinAtoms(),
+			~other.atoms_ & info.getAtoms() & ~info.getJoinAtoms() & ~other.reductAtoms_,
+			other.reductAtoms_ & info.getAtoms() & ~info.getJoinAtoms(),*/
+
+		unsigned int rule_cnt = POP_CNT(rules) + POP_CNT(rules_r);
+		for (unsigned int pos = POP_CNT(info.getAtoms()) + info.introducedRules.size(); rule_cnt && pos < INT_ATOMS_TYPE; ++pos)
+		{
+			atom_vector r = 1 << pos;
+			if ((r & rules) == 0 && (r & rules_r) == 0)
+				continue;
+
+			IGroundAspRule::SatisfiabilityInfo si;
+			const IGroundAspRule &ruleObject = info.instance->rule(info.ruleIdOfPosition(pos));//its->second);
+
+			if ((r & rules) != 0)
+			{
+
+				DBG("checking left rule "); DBG(r); DBG(" with "); DBG(rightTrueAtoms); DBG(","); DBG(rightFalseAtoms); DBG(","); DBG(rightReductFalseAtoms); DBG(std::endl);
+				si = ruleObject.check(
+						rightTrueAtoms,
+						rightFalseAtoms,
+						rightReductFalseAtoms, info);
+			}
+			else // rightIter != rightRules.end()
+			{
+
+				DBG("checking right rule "); DBG(r); DBG(" with "); DBG(leftTrueAtoms); DBG(","); DBG(leftFalseAtoms); DBG(","); DBG(leftReductFalseAtoms); DBG(std::endl);
+				si = ruleObject.check(
+						leftTrueAtoms,
+						leftFalseAtoms,
+						leftReductFalseAtoms, info);
+			}
+			--rule_cnt;
+
+			DBG("check result: "); DBG(si.satisfied); DBG(" / "); DBG(si.unsatisfied); DBG("joinatoms: "); DBG(info.getJoinAtoms()); DBG(std::endl);
+
+			if (si.unsatisfied) return CertificateDynAspTuple::EJR_NO;
+			if (si.satisfied) continue;
+
+			atoms_ |= r;
+		}
+		#else
+			assert(false); //TODO
+		#endif
+		}
+		#endif
+
 	#ifdef INT_ATOMS_TYPE
 		atoms_ |= atoms;
 	#else
@@ -1251,14 +1388,17 @@ namespace dynasp
 				rules_.insert(v.first);
 	#endif
 	#ifndef USE_PSEUDO
-		return (reductAtoms_ >> (INT_ATOMS_TYPE - 1)) != 0;
+		return (reductAtoms_ >> (INT_ATOMS_TYPE - 1)) != 0 ? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
 	#else
-		return	pseudo;
+		return pseudo ? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
 	#endif
 	}
 
 //TODO: only INT_ATOMS_TYPE at the moment!
 #ifdef CHECK_CONSENSE
+#ifndef INT_ATOMS_TYPE
+	assert(false);
+#endif
 	CertificateDynAspTuple::ESubsetRelation RuleSetDynAspTuple::isConsense(CertificateDynAspTuple::IConsenseData & d, const TreeNodeInfo& info, unsigned int cnt, const htd::ITreeDecomposition& td, htd::vertex_t node) const
 	{
 		if (info.getRules() == 0)
@@ -1509,7 +1649,7 @@ namespace dynasp
 			atom_vector rules_out = 0;
 			if ((atoms_ & joinVertices & info.getAtoms()) == (other.atoms_ & joinVertices & info.getAtoms()) && (reductAtoms_ & joinVertices & info.getAtoms()) == (other.reductAtoms_ & joinVertices & info.getAtoms()))
 			{
-				DBG("joinok");
+				DBG("joinok"); DBG(baseVertices); DBG(" "); DBG(tupleVertices); DBG(std::endl);
 				if (!checkJoinRules(
 					info,
 					joinVertices,
@@ -2004,6 +2144,8 @@ namespace dynasp
 				continue; // if we have a join rule which was already true
 			else if ((leftRules & r) != 0)
 			{
+			
+				DBG("checking left rule "); DBG(r); DBG("("); DBG(rule); DBG(")"); DBG(" with "); DBG(rightTrueAtoms); DBG(","); DBG(rightFalseAtoms); DBG(","); DBG(rightReductFalseAtoms); DBG(std::endl);
 				si = ruleObject.check(
 						rightTrueAtoms,
 						rightFalseAtoms,
@@ -2011,12 +2153,16 @@ namespace dynasp
 			}
 			else // rightIter != rightRules.end()
 			{
+
+				DBG("checking right rule "); DBG(r);  DBG("("); DBG(rule); DBG(")"); DBG(" with "); DBG(leftTrueAtoms); DBG(","); DBG(leftFalseAtoms); DBG(","); DBG(leftReductFalseAtoms); DBG(std::endl);
 				si = ruleObject.check(
 						leftTrueAtoms,
 						leftFalseAtoms,
 						leftReductFalseAtoms, info);
 			}
 
+
+			DBG("check result: "); DBG(si.satisfied); DBG(" / "); DBG(si.unsatisfied); DBG("joinatoms: "); DBG(joinVertices); DBG(std::endl);
 			if(si.unsatisfied) return false;
 			if(si.satisfied) continue;
 

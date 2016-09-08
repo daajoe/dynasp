@@ -40,7 +40,7 @@ namespace {
 
         DynAspOptions(int argc, char *argv[]) {
             int opt;
-            while ((opt = getopt(argc, argv, "mp:oernvhbds:c:t:l:")) != -1)
+            while ((opt = getopt(argc, argv, "jmp:ornevhbds:c:t:l:")) != -1)
                 switch (opt) {
                     case 'o':
                         this->tdopt = true;
@@ -217,9 +217,23 @@ namespace {
                 << std::endl
                 << " " << EXIT_PARSING_ERROR << "  if problems parsing input"
                 << std::endl
-                << std::endl
-                << "Report dynasp bugs to " << PACKAGE_BUGREPORT << std::endl;
+                << std::endl;
+//                << "Report dynasp bugs to " << PACKAGE_BUGREPORT << std::endl;
     }
+
+    const char *portfolio_g = {
+            "t [mcs,mf] #\0"
+                    "c [1,2,3,4,5,6][4]\n"
+                    "# algorithm configuration \n"
+                    "#   1: primal graph, full certificates;\n"
+                    "#   2: primal graph, optimized certificates;\n"
+                    "#   3: primal graph, inverse certificates;\n"
+                    "#   4: incidence graph, full certificates (default); \n"
+                    "#   5: incidence graph/primal constraints, full certificates;\n"
+                    "#   6: incidence graph/primal constraints, optimized certificates\0"
+                    "s [0,9223372036854775807][0]i #seed for the random number generator"
+    };
+
 
     void
     printPCS(const char *programName) {
@@ -234,7 +248,7 @@ namespace {
     void
     printVersion() {
         std::cout
-                << PACKAGE_STRING << std::endl
+//                << PACKAGE_STRING << std::endl
                 << "Copyright (C) 2016 Michael Morak & Markus Hecher & JKF" << std::endl
                 << "License GPLv3+: GNU GPL version 3 or later "
                 << "<http://gnu.org/licenses/gpl.html>." << std::endl

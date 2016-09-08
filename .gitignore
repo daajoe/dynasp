@@ -39,8 +39,6 @@ src/parsers/stack.hh
 #cmake
 CMakeFiles/
 src/CMakeFiles/
-*/.deps/*
-*/.dirstamp/*
 Makefile
 CMakeCache.txt
 cmake_install.cmake
@@ -49,6 +47,7 @@ cmake_uninstall.cmake.in
 CPackConfig.cmake
 CPackSourceConfig.cmake
 CTestTestfile.cmake
+DartConfiguration.tcl
 
 #binaries
 bin/

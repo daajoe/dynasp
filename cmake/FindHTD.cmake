@@ -14,7 +14,7 @@ if (HTD_INCLUDE_DIR AND HTD_LIBRARIES)
 endif (HTD_INCLUDE_DIR AND HTD_LIBRARIES)
 
 find_path(HTD_INCLUDE_DIR NAMES htd/ITreeDecomposition.hpp )
-find_library(HTD_LIBRARIES NAMES htd_cli libhtd )
+find_library(HTD_LIBRARIES NAMES htd libhtd )
 MESSAGE(STATUS "HTD libs: " ${HTD_LIBRARIES} " " ${HTDXX_LIBRARIES} )
 
 include(FindPackageHandleStandardArgs)

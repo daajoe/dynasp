@@ -48,6 +48,7 @@ cmake_uninstall.cmake
 cmake_uninstall.cmake.in
 CPackConfig.cmake
 CPackSourceConfig.cmake
+CTestTestfile.cmake
 
 #binaries
 bin/

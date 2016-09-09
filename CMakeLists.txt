@@ -41,14 +41,40 @@ if (NOT DEFINED BUILD_TESTING)
     set(BUILD_TESTING OFF)
 endif()
 
-#TODO
-#subdirs(htd/)
-#add_library(libsharp)
-#subdirs(sharp/)
+
+#EXTERNAL DEPENDENCIES TO GIT SUBMODULES
+include(ExternalProject)
+
+set(ExternalProjectCMakeArgs
+        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}:PATH
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        )
+
+ExternalProject_Add(htd-build
+        DOWNLOAD_COMMAND git submodule update
+        DOWNLOAD_DIR ${PROJECT_SOURCE_DIR}
+        SOURCE_DIR ${PROJECT_SOURCE_DIR}/htd
+        BINARY_DIR ${PROJECT_BINARY_DIR}/htd
+        STAMP_DIR ${PROJECT_BINARY_DIR}/htd
+        TMP_DIR ${PROJECT_BINARY_DIR}/htd
+#        INSTALL_DIR ${htd_INSTALL_DIR}
+        CMAKE_ARGS ${ExternalProjectCMakeArgs}
+        )
+
+ExternalProject_Add(sharp-build
+        DOWNLOAD_COMMAND git submodule update
+        DOWNLOAD_DIR ${PROJECT_SOURCE_DIR}
+        SOURCE_DIR ${PROJECT_SOURCE_DIR}/sharp
+        BINARY_DIR ${PROJECT_BINARY_DIR}/sharp
+        STAMP_DIR ${PROJECT_BINARY_DIR}/sharp
+        TMP_DIR ${PROJECT_BINARY_DIR}/sharp
+        CMAKE_ARGS ${ExternalProjectCMakeArgs}
+        )
+
 
 subdirs(src/)
-
-#       subdirs(test)
 
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"

@@ -53,6 +53,8 @@ namespace dynasp
 		void setNodeData(size_t node, TreeNodeInfo&& data);
 		const TreeNodeInfo& getNodeData(size_t node) const;
 		TreeNodeInfo& getNodeData(size_t node);
+		void printSymbolTable() const;
+
 	//#endif
 
 	private:

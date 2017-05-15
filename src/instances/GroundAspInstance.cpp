@@ -196,4 +196,11 @@ namespace dynasp
 		return weight;
 	}
 
+	void GroundAspInstance::printSymbolTable() const{
+		for (auto &e: atomNames_){
+			std::cout << e.first << ":" << e.second << std::endl;
+		}
+	}
+
+
 }// namespace dynasp

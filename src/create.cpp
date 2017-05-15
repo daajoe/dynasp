@@ -1,10 +1,11 @@
 #ifdef HAVE_CONFIG_H
-	#include <config.h>
+#include <config.h>
 #endif
 
 #include "instances/GroundAspRule.hpp"
 #include "instances/GroundAspInstance.hpp"
 #include "instances/PrimalHypergraphConverter.hpp"
+#include "instances/DisjunctivePrimalHypergraphConverter.hpp"
 #include "instances/IncidenceHypergraphConverter.hpp"
 #include "instances/IncidencePrimalHypergraphConverter.hpp"
 //#include "algorithms/FullDynAspTuple.hpp"
@@ -17,204 +18,181 @@
 
 #include <stdexcept>
 
-namespace dynasp
-{
-	namespace
-	{
-		create::ConfigurationType type_ =  create::PRIMAL_SIMPLETUPLE;
-		bool nonnorm_ = false, redspeed_ = true, compr_ = true;
-		unsigned passes_ = 3;
-		IGroundAspRuleFactory *ruleFactory_ = nullptr;
-		IGroundAspInstanceFactory *instanceFactory_ = nullptr;
-		IHypergraphConverterFactory *hypergraphConverterFactory_ = nullptr;
-		IDynAspTupleFactory *tupleFactory_ = nullptr;
-	}
+namespace dynasp {
+    namespace {
+        create::ConfigurationType type_ = create::PRIMAL_SIMPLETUPLE;
+        bool nonnorm_ = false, redspeed_ = true, compr_ = true;
+        unsigned passes_ = 3;
+        IGroundAspRuleFactory *ruleFactory_ = nullptr;
+        IGroundAspInstanceFactory *instanceFactory_ = nullptr;
+        IHypergraphConverterFactory *hypergraphConverterFactory_ = nullptr;
+        IDynAspTupleFactory *tupleFactory_ = nullptr;
+    }
 
-	create::ConfigurationType create::get()
-	{
-		return type_;
-	}
+    create::ConfigurationType create::get() {
+        return type_;
+    }
 
-	unsigned create::passes()
-	{
-		return passes_;
-	}
+    unsigned create::passes() {
+        return passes_;
+    }
 
-	void create::setPasses(unsigned p)
-	{
-		passes_ = p;
-	}
+    void create::setPasses(unsigned p) {
+        passes_ = p;
+    }
 
-	bool create::reductSpeedup()
-	{
-		return redspeed_;
-	}
+    bool create::reductSpeedup() {
+        return redspeed_;
+    }
 
-	void create::setReductSpeedup(bool rs)
-	{
-		redspeed_ = rs;
-	}
-	
-	bool create::isCompr()
-	{
-		return compr_;
-	}
+    void create::setReductSpeedup(bool rs) {
+        redspeed_ = rs;
+    }
 
-	void create::setCompr(bool c)
-	{
-		compr_ = c;
-	}
+    bool create::isCompr() {
+        return compr_;
+    }
 
-	bool create::isNon()
-	{
-		return nonnorm_;
-	}
+    void create::setCompr(bool c) {
+        compr_ = c;
+    }
 
-	void create::setNon(bool non)
-	{
-		nonnorm_ = non;
-	}
+    bool create::isNon() {
+        return nonnorm_;
+    }
 
-	void create::set(ConfigurationType type)
-	{
-		switch(type)
-		{
-		case create::PRIMAL_FULLTUPLE:
-		case create::PRIMAL_SIMPLETUPLE:
-		case create::PRIMAL_INVERSESIMPLETUPLE:
-		case create::INCIDENCE_FULLTUPLE:
-		case create::INCIDENCEPRIMAL_FULLTUPLE:
-		case create::INCIDENCEPRIMAL_RULESETTUPLE:
-			type_ = type;
-			break;
+    void create::setNon(bool non) {
+        nonnorm_ = non;
+    }
 
-		default:
-			throw std::domain_error("Invalid type1.");
-			break;
-		}
-	}
+    void create::set(ConfigurationType type) {
+        switch (type) {
+            case create::PRIMAL_FULLTUPLE:
+            case create::PRIMAL_SIMPLETUPLE:
+            case create::PRIMAL_INVERSESIMPLETUPLE:
+            case create::INCIDENCE_FULLTUPLE:
+            case create::INCIDENCEPRIMAL_FULLTUPLE:
+            case create::INCIDENCEPRIMAL_RULESETTUPLE:
+            case create::DISJ_PRIMAL_SIMPLETUPLE:
+            case create::DISJ_INCIDENCEPRIMAL_FULLTUPLE:
+            case create::DISJ_INCIDENCE_FULLTUPLE:
+                type_ = type;
+                break;
 
-	void create::set(IGroundAspRuleFactory *factory)
-	{
-		if(ruleFactory_)
-			delete ruleFactory_;
-		ruleFactory_ = factory;
-	}
+            default:
+                throw std::domain_error("Invalid type1.");
+                break;
+        }
+    }
 
-	void create::set(IGroundAspInstanceFactory *factory)
-	{
-		if(instanceFactory_)
-			delete instanceFactory_;
-		instanceFactory_ = factory;
-	}
+    void create::set(IGroundAspRuleFactory *factory) {
+        if (ruleFactory_)
+            delete ruleFactory_;
+        ruleFactory_ = factory;
+    }
 
-	void create::set(IHypergraphConverterFactory *factory)
-	{
-		if(hypergraphConverterFactory_)
-			delete hypergraphConverterFactory_;
-		hypergraphConverterFactory_ = factory;
-	}
+    void create::set(IGroundAspInstanceFactory *factory) {
+        if (instanceFactory_)
+            delete instanceFactory_;
+        instanceFactory_ = factory;
+    }
 
-	void create::set(IDynAspTupleFactory *factory)
-	{
-		if(tupleFactory_)
-			delete tupleFactory_;
-		tupleFactory_ = factory;
-	}
-	
-	IGroundAspRule *create::rule()
-	{
-		if(ruleFactory_) return ruleFactory_->create();
-		return create::rule(type_);
-	}
+    void create::set(IHypergraphConverterFactory *factory) {
+        if (hypergraphConverterFactory_)
+            delete hypergraphConverterFactory_;
+        hypergraphConverterFactory_ = factory;
+    }
 
-	IGroundAspRule *create::rule(ConfigurationType type)
-	{
-		switch(type)
-		{
-		default:
-			return new GroundAspRule();
-		}
-	}
+    void create::set(IDynAspTupleFactory *factory) {
+        if (tupleFactory_)
+            delete tupleFactory_;
+        tupleFactory_ = factory;
+    }
 
-	IGroundAspInstance *create::instance()
-	{
-		if(instanceFactory_) return instanceFactory_->create();
-		return create::instance(type_);
-	}
+    IGroundAspRule *create::rule() {
+        if (ruleFactory_) return ruleFactory_->create();
+        return create::rule(type_);
+    }
 
-	IGroundAspInstance *create::instance(ConfigurationType type)
-	{
-		switch(type)
-		{
-		default:
-			return new GroundAspInstance();
-		}
-	}
+    IGroundAspRule *create::rule(ConfigurationType type) {
+        switch (type) {
+            default:
+                return new GroundAspRule();
+        }
+    }
 
-	IHypergraphConverter *create::hypergraphConverter()
-	{
-		if(hypergraphConverterFactory_)
-			return hypergraphConverterFactory_->create();
-		return create::hypergraphConverter(type_);
-	}
+    IGroundAspInstance *create::instance() {
+        if (instanceFactory_) return instanceFactory_->create();
+        return create::instance(type_);
+    }
 
-	IHypergraphConverter *create::hypergraphConverter(ConfigurationType type)
-	{
-		switch(type)
-		{
-		case create::PRIMAL_FULLTUPLE:
-		case create::PRIMAL_SIMPLETUPLE:
-		case create::PRIMAL_INVERSESIMPLETUPLE:
-			return new PrimalHypergraphConverter();
+    IGroundAspInstance *create::instance(ConfigurationType type) {
+        switch (type) {
+            default:
+                return new GroundAspInstance();
+        }
+    }
 
-		case create::INCIDENCE_FULLTUPLE:
-			return new IncidenceHypergraphConverter();
+    IHypergraphConverter *create::hypergraphConverter() {
+        if (hypergraphConverterFactory_)
+            return hypergraphConverterFactory_->create();
+        return create::hypergraphConverter(type_);
+    }
 
-		case create::INCIDENCEPRIMAL_FULLTUPLE:
-		case create::INCIDENCEPRIMAL_RULESETTUPLE:
-			return new IncidencePrimalHypergraphConverter();
+    IHypergraphConverter *create::hypergraphConverter(ConfigurationType type) {
+        switch (type) {
+            case create::PRIMAL_FULLTUPLE:
+            case create::PRIMAL_SIMPLETUPLE:
+            case create::PRIMAL_INVERSESIMPLETUPLE:
+                return new PrimalHypergraphConverter();
 
-		default:
-			throw std::domain_error("Invalid type2.");
-		}
-	}
+            case create::INCIDENCE_FULLTUPLE:
+                return new IncidenceHypergraphConverter();
 
-	IDynAspTuple *create::tuple(bool leaf)
-	{
-		if(tupleFactory_) return tupleFactory_->create(leaf);
-		return create::tuple(leaf, type_); 
-	}
+            case create::INCIDENCEPRIMAL_FULLTUPLE:
+            case create::INCIDENCEPRIMAL_RULESETTUPLE:
+                return new IncidencePrimalHypergraphConverter();
+            case create::DISJ_PRIMAL_SIMPLETUPLE:
+                return new DisjunctivePrimalHypergraphConverter();
+            default:
+                throw std::domain_error("Invalid type2.");
+        }
+    }
 
-	IDynAspTuple *create::tuple(bool leaf, ConfigurationType type)
-	{
-		switch(type)
-		{
-		case create::PRIMAL_FULLTUPLE:
-		case create::INCIDENCE_FULLTUPLE:
-		case create::INCIDENCEPRIMAL_FULLTUPLE:
-			//return new FullDynAspTuple(leaf);
+    IDynAspTuple *create::tuple(bool leaf) {
+        if (tupleFactory_) return tupleFactory_->create(leaf);
+        return create::tuple(leaf, type_);
+    }
 
-		case create::PRIMAL_SIMPLETUPLE:
-			return new SimpleDynAspTuple(/*leaf*/);
+    IDynAspTuple *create::tuple(bool leaf, ConfigurationType type) {
+        switch (type) {
+            case create::PRIMAL_FULLTUPLE:
+            case create::INCIDENCE_FULLTUPLE:
+            case create::INCIDENCEPRIMAL_FULLTUPLE:
+            case create::DISJ_INCIDENCE_FULLTUPLE:
+            case create::DISJ_INCIDENCEPRIMAL_FULLTUPLE:
+                //return new FullDynAspTuple(leaf);
 
-		case create::PRIMAL_INVERSESIMPLETUPLE:
-			//return new InverseSimpleDynAspTuple(leaf);
+            case create::PRIMAL_SIMPLETUPLE:
+            case create::DISJ_PRIMAL_SIMPLETUPLE:
+                return new SimpleDynAspTuple(/*leaf*/);
 
-		case create::INCIDENCEPRIMAL_RULESETTUPLE:
-			//TODO: remove this stuff here!
-			return new RuleSetDynAspTuple(leaf);
+            case create::PRIMAL_INVERSESIMPLETUPLE:
+                //return new InverseSimpleDynAspTuple(leaf);
 
-		default:
-			throw std::domain_error("Invalid type3.");
-		}
-	}
+            case create::INCIDENCEPRIMAL_RULESETTUPLE:
+                //TODO: remove this stuff here!
+                return new RuleSetDynAspTuple(leaf);
 
-	IDynAspCountingSolutionExtractor *create::countingSolutionExtractor()
-	{
-		//TODO: implement and use factory for this (in sharp)
-		return new DynAspCountingSolutionExtractor();
-	}
+            default:
+                throw std::domain_error("Invalid type3.");
+        }
+    }
+
+    IDynAspCountingSolutionExtractor *create::countingSolutionExtractor() {
+        //TODO: implement and use factory for this (in sharp)
+        return new DynAspCountingSolutionExtractor();
+    }
 
 } // namespace dynasp
 

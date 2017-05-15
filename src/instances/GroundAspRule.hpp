@@ -27,6 +27,10 @@ namespace dynasp
 		virtual bool isNegWeightedAtom(atom_t atom) const;
 		virtual bool hasWeightedBody() const;
 		virtual bool hasChoiceHead() const;
+		virtual size_t getHeadSize() const;
+        virtual const std::unordered_set<atom_t>& getHead() const;
+        virtual const std::unordered_map<atom_t, std::size_t>& getPosBody() const;
+
 		virtual bool isHeadAtom(atom_t atom) const;
 		virtual bool isPositiveBodyAtom(atom_t atom) const;
 		virtual bool isNegativeBodyAtom(atom_t atom) const;

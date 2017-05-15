@@ -85,7 +85,19 @@ namespace dynasp
 		return head_.find(atom) != head_.end();
 	}
 
-	bool GroundAspRule::isPositiveBodyAtom(atom_t atom) const
+	size_t GroundAspRule::getHeadSize() const {
+		return head_.size();
+	}
+
+    const std::unordered_set<atom_t>& GroundAspRule::getHead() const{
+        return head_;
+    };
+
+	const std::unordered_map<atom_t, std::size_t>& GroundAspRule::getPosBody() const{
+		return positiveBody_;
+	}
+
+    bool GroundAspRule::isPositiveBodyAtom(atom_t atom) const
 	{
 		return positiveBody_.find(atom) != positiveBody_.end();
 	}

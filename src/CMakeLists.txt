@@ -1,5 +1,6 @@
 include_directories(${PROJECT_SOURCE_DIR}/include) # ${CMAKE_SOURCE_DIR})
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake")
+set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /home/vagrant/.local/lib)
 
 #TODO:
 #ExternalProject_Get_Property(htd install_dir)
@@ -33,12 +34,13 @@ set(DYNASP_MAIN_VERSION ${DYNASPMAIN_VERSION_MAJOR}.${DYNASP_MAIN_VERSION_MINOR}
 
 find_package(HTD REQUIRED)
 find_package(SHARP REQUIRED)
-find_package(GMP REQUIRED)
+find_package(GMP 10.3.2 REQUIRED)
 find_package(BISON 2.4.1 REQUIRED)
 find_package(FLEX 2.5.35 REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+#include_directories(${GMP_INCLUDE_DIR})
 
 BISON_TARGET(LParseParser parsers/LParseBisonParser.yy ${CMAKE_CURRENT_BINARY_DIR}/parsers/LParseBisonParser.cc)
 FLEX_TARGET(LParseLexer parsers/LParseLexer.ll ${CMAKE_CURRENT_BINARY_DIR}/parsers/LParseLexer.cc)
@@ -72,10 +74,9 @@ set_target_properties(dynasp
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         )
 
-target_link_libraries(dynasp htd sharp htd)
 
 add_executable(dynasp2 main.cpp ${BISON_LParseParser_OUTPUTS} ${FLEX_LParseLexer_OUTPUTS})
-target_link_libraries(dynasp2 htd gmp sharp dynasp )
+target_link_libraries(dynasp2 htd sharp gmp gmpxx dynasp)
 
 set_property(TARGET dynasp2 PROPERTY CXX_STANDARD 11)
 set_property(TARGET dynasp2 PROPERTY CXX_STANDARD_REQUIRED ON)

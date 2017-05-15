@@ -13,3 +13,8 @@
   $ git submodule init
   $ git submodule update --checkout --recursive
   ```
+
+#REQUIREMENTS
+- libgmpxx4ldbl
+- libgmp3-dev
+

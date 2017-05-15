@@ -11,6 +11,7 @@
 namespace dynasp
 {
 	class PrimalHypergraphConverter;
+    class DisjunctivePrimalHypergraphConverter;
 	class IncidenceHypergraphConverter;
 
 	class DYNASP_LOCAL GroundAspInstance : public IGroundAspInstance
@@ -67,6 +68,7 @@ namespace dynasp
 	//#endif
 	public:
 		friend class PrimalHypergraphConverter;
+        friend class DisjunctivePrimalHypergraphConverter;
 		friend class IncidenceHypergraphConverter;
 		friend class IncidencePrimalHypergraphConverter;
 

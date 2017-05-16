@@ -6,6 +6,8 @@
 #include "instances/GroundAspInstance.hpp"
 #include "instances/PrimalHypergraphConverter.hpp"
 #include "instances/DisjunctivePrimalHypergraphConverter.hpp"
+#include "instances/DisjunctiveIncidenceHypergraphConverter.hpp"
+#include "instances/DisjunctiveIncidencePrimalHypergraphConverter.hpp"
 #include "instances/IncidenceHypergraphConverter.hpp"
 #include "instances/IncidencePrimalHypergraphConverter.hpp"
 //#include "algorithms/FullDynAspTuple.hpp"
@@ -154,6 +156,12 @@ namespace dynasp {
                 return new IncidencePrimalHypergraphConverter();
             case create::DISJ_PRIMAL_SIMPLETUPLE:
                 return new DisjunctivePrimalHypergraphConverter();
+            case create::DISJ_INCIDENCE_FULLTUPLE:
+                return new DisjunctivePrimalHypergraphConverter();
+	    case create::DISJ_INCIDENCEPRIMAL_FULLTUPLE:
+                return new DisjunctiveIncidencePrimalHypergraphConverter();
+
+
             default:
                 throw std::domain_error("Invalid type2.");
         }

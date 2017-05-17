@@ -36,7 +36,7 @@ find_package(HTD REQUIRED)
 find_package(SHARP REQUIRED)
 find_package(GMP 10.3.2 REQUIRED)
 find_package(BISON 2.4.1 REQUIRED)
-find_package(FLEX 2.5.35 REQUIRED)
+find_package(FLEX 2.5.39 EXACT REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

@@ -147,18 +147,16 @@ namespace dynasp {
             case create::PRIMAL_SIMPLETUPLE:
             case create::PRIMAL_INVERSESIMPLETUPLE:
                 return new PrimalHypergraphConverter();
-
             case create::INCIDENCE_FULLTUPLE:
                 return new IncidenceHypergraphConverter();
-
             case create::INCIDENCEPRIMAL_FULLTUPLE:
             case create::INCIDENCEPRIMAL_RULESETTUPLE:
                 return new IncidencePrimalHypergraphConverter();
             case create::DISJ_PRIMAL_SIMPLETUPLE:
                 return new DisjunctivePrimalHypergraphConverter();
             case create::DISJ_INCIDENCE_FULLTUPLE:
-                return new DisjunctivePrimalHypergraphConverter();
-	    case create::DISJ_INCIDENCEPRIMAL_FULLTUPLE:
+                return new DisjunctiveIncidenceHypergraphConverter();
+            case create::DISJ_INCIDENCEPRIMAL_FULLTUPLE:
                 return new DisjunctiveIncidencePrimalHypergraphConverter();
 
 

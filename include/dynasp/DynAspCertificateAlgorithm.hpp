@@ -8,7 +8,8 @@
 #include <htd/main.hpp>
 #include <dynasp/CertificateDynAspTuple.hpp>
 #include <unordered_map>
-
+#include <dynasp/DynAspAlgorithm.hpp>
+//#include <dynasp/CertificateDynAspTuple.hpp>
 
 	/*namespace dynasp
 	{
@@ -27,11 +28,13 @@
 namespace dynasp
 {
 
-	class DYNASP_API DynAspCertificateAlgorithm : public sharp::ITreeTupleAlgorithm
+	class DYNASP_API DynAspCertificateAlgorithm : public DynAspAlgorithm // sharp::ITreeTupleAlgorithm
 	{
 	public:
 		DynAspCertificateAlgorithm();
 		virtual ~DynAspCertificateAlgorithm();
+		//virtual void setDepEval(DependencyGraphEvaluator* eval) { eval_ = eval; }
+		virtual void onExit() const override;
 
 		virtual std::vector<const htd::ILabelingFunction *>
 				preprocessOperations() const;
@@ -47,6 +50,7 @@ namespace dynasp
 
 		typedef CertificateDynAspTuple::Certificate_pointer_set TupleType;
 
+		static bool insertIfNotSubsumed(const TreeNodeInfo& info, TupleType* tupleType, const CertificateDynAspTuple* p, bool strct);
 
 		//typedef std::unordered_map<TupleType, CertificateDynAspTuple*> TupleTypes_;
 #ifdef VEC_CERTS_TYPE
@@ -126,10 +130,14 @@ namespace dynasp
 		typedef std::unordered_map<TupleType*, CertificateDynAspTuple*, TupleTypesHash, TupleTypesEqual > TupleTypes;
 #endif
 	private:
+		//DependencyGraphEvaluator* eval_;
+		void removeStrictSelfLoop(const CertificateDynAspTuple* t) const;
+		//Comparator used for searching pseudo certificates within TupleTypes
+		 //bool cmp(const CertificateDynAspTuple::DynAspCertificatePointer &a, const CertificateDynAspTuple::DynAspCertificatePointer &b) const { return a.cert->isPseudo() == b.cert->isPseudo(); }
 	#ifdef USE_OPTIMIZED_EXTENSION_POINTERS
-		static CertificateDynAspTuple* insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers& origin, const TreeNodeInfo& info);
+		CertificateDynAspTuple* insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers& origin, const TreeNodeInfo& info) const;
 	#endif
-		static CertificateDynAspTuple* insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild = 0);
+		CertificateDynAspTuple* insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild = 0) const;
 		/*struct Impl;
 		Impl * const impl;*/
 

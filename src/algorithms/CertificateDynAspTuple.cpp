@@ -10,7 +10,6 @@
 
 #include "../util/debug.hpp"
 
-#include <cassert>
 
 #include "SimpleDynAspTuple.hpp"
 #include <dynasp/IDynAspTuple.hpp>
@@ -18,7 +17,6 @@
 #include <stack>
 #include <dynasp/IGroundAspInstance.hpp>
 #include <dynasp/create.hpp>
-#include <cassert>
 
 using namespace dynasp;
 
@@ -68,6 +66,7 @@ void CertificateDynAspTuple::projectPtrs(IDynAspTuple& newTuple)
 	origins_.push_back({&static_cast<CertificateDynAspTuple&>(newTuple)});
 #endif
 
+
 /*#ifdef SECOND_PASS_COMPRESSED
 	//evolution_.insert(evolution_.end(), static_cast<CertificateDynAspTuple&>(newTuple).evolution_.begin(),
 	//static_cast<CertificateDynAspTuple&>(newTuple).evolution_.end());
@@ -76,9 +75,95 @@ void CertificateDynAspTuple::projectPtrs(IDynAspTuple& newTuple)
 #endif
 }
 
-//PRECONDITION: merge() successfully has been called before
-void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
+bool CertificateDynAspTuple::isNewProjectionOk(unsigned char /*further*/) const
 {
+	return evolution_.size() > 0;
+	//return (reductAtoms_ != 0) == (further != 0);
+}
+
+//PRECONDITION: merge() successfully has been called before
+void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg, bool 
+#ifndef NOT_MERGE_PSEUDO
+	project
+#endif
+)
+{
+
+#ifndef NOT_MERGE_PSEUDO		//problem is here that the base tuple from which we projected, might have already had parents/evolution_
+	//assert(false);
+	if (project) // && evolution_.size())
+	{
+		CertificateDynAspTuple& mm = static_cast<CertificateDynAspTuple&>(merg);
+		assert(mm.origins_.size() == 1);	//only one ext ptr here!
+		//assert(evolution_.size());	
+		CertificateDynAspTuple* newPseudo = static_cast<CertificateDynAspTuple*>((*mm.origins_.begin())[0]);
+	
+		DBG("mergePtrs"); DBG(" "); DBG(newPseudo->reductAtoms_); DBG(","); DBG(reductAtoms_); DBG(std::endl);
+
+		//assert(false);
+		if (/*newPseudo->evolution_.size() == 0 &&*/ newPseudo->reductAtoms_ && !reductAtoms_)	//new Pseudo thingy
+		{
+			assert( newPseudo->evolution_.size() == 0 );
+			//assert(false);
+			std::size_t pos = (std::size_t)(-1);
+			for (auto& org : origins_)
+			{
+				assert(org.size() == 1);
+				auto* tu = org[0];
+
+				for (auto* evo : tu->evolution_)		//go up
+				{
+					/*if (evo->evolution_.size() == 0)	//skip deleted ones!
+						continue;*/
+					DBG("EVO NOT 0!"); DBG(std::endl);
+					for (auto& orig : evo->origins_)	//go down
+					{
+						if (pos == (std::size_t)(-1))
+						{
+							pos = 0;
+							for (auto* ptr : orig)
+							{
+								if (ptr == tu)
+									break;
+								++pos;
+							}
+							if (pos == orig.size())
+								pos = (std::size_t)(-1);
+						}
+						if (pos != (std::size_t)(-1) && orig[pos] == tu)
+						{
+							auto cpy = orig;
+							cpy[pos] = newPseudo;
+							//std::cout << cpy << std::endl;
+							DBG(cpy); DBG(std::endl);
+						#ifdef EXTENSION_POINTERS_SET_TYPE
+							evo->origins_.insert(std::move(cpy));
+						#else
+							
+							////insertMerged(evo->origins_, cpy); //.insert(std::move(cpy));
+
+							//DBG("insert orig: "); DBG(evo); DBG(","); DBG(newPseudo); DBG(std::endl);
+							insertMergedOnce(std::move(cpy), evo->origins_);
+							////evo->origins_.push_back(std::move(cpy));
+						#endif
+						#ifdef REVERSE_EXTENSION_POINTER_SET_TYPE
+							newPseudo->evolution_.emplace(evo);
+						#else
+							DBG("insert evo: "); DBG(evo); DBG(","); DBG(newPseudo); DBG(std::endl);
+							////newPseudo->evolution_.emplace_back(evo);
+							insertMergedOnce(evo, newPseudo->evolution_);
+						#endif
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
+
+
+
+
 	//return;
 	//return;
 	//DO ALSO SOME WORK OF MERGE, because of these STUPID COSTS;
@@ -141,7 +226,14 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 
 	CertificateDynAspTuple::EJoinResult CertificateDynAspTuple::join(const TreeNodeInfo& info, const std::vector<unsigned int>& its, const std::vector<std::vector<IDynAspTuple *>*>& beg, const htd::ITreeDecomposition& td, htd::vertex_t node, ExtensionPointer& p)
 	{
+	/*#ifdef SUPPORTED_CHECK
+		assert(false);
+		char* pxs = nullptr;
+		*pxs = '0';
+	#endif*/
 		CertificateDynAspTuple* first = static_cast<CertificateDynAspTuple*>((*beg[0])[its[0]]);
+
+		//std::cout << "first: " << first->reductAtoms_ << "," <<  first->joinHash(td.childAtPosition(node,0), info.getAtoms(), info) << std::endl;
 
 	#ifdef INT_ATOMS_TYPE
 		htd::vertex_t child = td.childAtPosition(node, 0);
@@ -151,10 +243,22 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 		| (first->reductAtoms_ & atom_vector(1 << (INT_ATOMS_TYPE - 1)))
 	#endif
 		;
+		#ifdef SUPPORTED_CHECK
+			supp_ = info.transform(first->supp_, child);
+			atom_vector nsupp =  info.instance->getNodeData(child).getAtoms() & ~(first->supp_);
+			if (!dynasp::create::isSatOnly() && dynasp::create::isNon() &&	//non-norm, size 2 join
+			    (POP_CNT(info.transform(nsupp, child)) < POP_CNT(nsupp)))
+			{
+				DBG("kicking out join first");
+				DBG(std::endl);
+				return CertificateDynAspTuple::EJR_NO;
+			}
+		#endif
 	#else
 		mergeHashValue = 0;
 		atoms_ = first->atoms_;
 		reductAtoms_ = first->reductAtoms_;
+
 	#endif
 	#ifdef USE_PSEUDO
 		pseudo = first->pseudo;
@@ -177,6 +281,7 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 		atom_vector t;
 		t.insert(t.end(), atoms_.begin(), atoms_.end());
 		unsigned int weight = info.instance->weight(t, f, info);
+		float sol = inf.instance->cost(t,f,info);
 		#ifdef NON_NORM_JOIN
 			assert(false);	//TODO
 		#endif
@@ -184,6 +289,7 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 		#ifdef NON_NORM_JOIN
 			#ifdef INT_ATOMS_TYPE
 				unsigned int weight = info.instance->weight(atoms_ & info.getJoinAtoms(), ~atoms_ & info.getJoinAtoms(), info);
+				float sol = info.instance->cost(atoms_ & info.getJoinAtoms(), ~atoms_ & info.getJoinAtoms(), info);
 			#else
 				assert(false);
 			#endif
@@ -196,15 +302,28 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 				f
 			#endif
 			, info);
+		float sol = info.instance->cost(atoms_, 
+			#ifdef INT_ATOMS_TYPE
+				~atoms_ & info.getAtoms()
+			#else
+				f
+			#endif
+			, info);
 		#endif
 	#endif
 		for (unsigned int index = 1; index < its.size(); ++index)
 		{
 			CertificateDynAspTuple* t = static_cast<CertificateDynAspTuple*>((*beg[index])[its[index]]);
+
+			//std::cout << std::endl << t->joinHash(td.childAtPosition(node,index), info.getAtoms(), info) << std::endl;
 			//child = td.childAtPosition(node, index);
 	#ifndef USE_PSEUDO
 			//atoms_ |= info.transform(t->atoms_, child);
 			reductAtoms_ |= /*info.transform(t->reductAtoms_, child) |*/ (t->reductAtoms_ & atom_vector(1 << (INT_ATOMS_TYPE - 1)));
+			//std::cout << t->reductAtoms_ << std::endl;
+		/*#ifdef SUPPORTED_CHECK
+			supp_ |= t->supp_;
+		#endif*/
 	#else
 			pseudo |= t->pseudo;
 	#endif
@@ -214,6 +333,22 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 			#ifdef INT_ATOMS_TYPE
 				atoms_ |= info.transform(t->atoms_, child);
 				reductAtoms_ |= info.transform(t->reductAtoms_, child);
+				#ifdef SUPPORTED_CHECK
+				{
+					atom_vector supps = 
+						info.transform(t->supp_, child);
+					atom_vector nsupps =  info.instance->getNodeData(child).getAtoms() & ~(t->supp_);
+					if ( !dynasp::create::isSatOnly() && dynasp::create::isNon()	//non-norm, size 2 join
+					  &&  (POP_CNT(info.transform(nsupps, child)) < POP_CNT(nsupps)))
+					{
+						DBG("kicking out join t"); 
+						DBG(std::endl);
+						return CertificateDynAspTuple::EJR_NO;
+					}
+					supp_ |= supps;
+				}
+				#endif
+
 			#else
 				assert(false);	//TODO
 			#endif
@@ -221,14 +356,21 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 			//TODO: not naeher bestimmt up to now
 			if (!isPseudo())
 			{
-				solutions_ *= t->solutions_;
+				solutions_ *= t->solutions_ / sol;
 				assert(t->weight_ >= weight);
 				weight_ += t->weight_ - weight;
 			}
 			p[index] = t;
 		}
+		//supp_ |= checkSupportedRules(info);
 	#ifndef USE_PSEUDO
-		return (reductAtoms_ >> (INT_ATOMS_TYPE - 1)) != 0 ? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
+		//std::cout << sizeof(std::size_t) << "vs:" << sizeof(unsigned int) << "," << sizeof(size_t) << "," << reductAtoms_ << "," << first->reductAtoms_ << std::endl;
+		assert((reductAtoms_ != 0) >= (first->reductAtoms_ != 0));
+		return (reductAtoms_ >> (INT_ATOMS_TYPE - 1)) != 0
+		#ifndef NOT_MERGE_PSEUDO
+			|| reductAtoms_
+		#endif
+			? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
 	#else
 		return	pseudo ? CertificateDynAspTuple::EJR_PSEUDO : CertificateDynAspTuple::EJR_NON_PSEUDO;
 	#endif
@@ -265,6 +407,9 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 		{
 			solutions_ += mergee.solutions_;
 		}
+		#ifdef SUPPORTED_CHECK
+		supp_ |= mergee.supp_;
+		#endif
 	}
 
 	//static unsigned int cntr = 0;
@@ -368,28 +513,63 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 	//#endif
 	}
 
-	void CertificateDynAspTuple::postEvaluate()
+	void CertificateDynAspTuple::postEvaluate(unsigned char further)
 	{
 		//std::cout << "uppointer" << std::endl;
 		//return;
 	#ifndef SINGLE_LAYER_
 		//TODO: prevent this stupid work
 		//CertificateDynAspTuple::ReverseExtensionPointers ptrs = {this};//&dtuple};
+		if (dynasp::create::passes() >= 4 && this->isPseudo() != further)
+			return;
+	#ifndef NOT_MERGE_PSEUDO
+		if ((reductAtoms_ != 0) != (further != 0))
+		{
+			//std::cout << "PROBL: " << reductAtoms_ << "," << (bool)further << std::endl;
+			//std::cout << this << "," << atoms_ << std::endl;
+			return;
+		}
+	#endif
 		for (const CertificateDynAspTuple::ExtensionPointer& down : origins_)
+		{
+			CertificateDynAspTuple* last = nullptr;
 			for (CertificateDynAspTuple* ptr : down)
 			{
+				if (dynasp::create::passes() >= 4 && ptr->getClone() != ptr) //(unsigned char)ptr->isPseudo() != further)
+					continue;
 				assert(this == getClone());
 				//assert(false);
-			#ifdef REVERSE_EXTENSION_POINTER_SET_TYPE
-				ptr->evolution_.emplace(this);
-				//insertSet(ptrs, ptr->evolution_);
-			#else
-				insertMergedOnce(this, ptr->evolution_);
-			#endif
+				if (last && down.size() == 2)
+				{
+				#ifdef REVERSE_EXTENSION_POINTER_SEARCH_IDX
+					std::unordered_set<const CertificateDynAspTuple*> x;
+					last->evolutionWith_.emplace(this, std::move(x)).first->second.emplace(ptr);
+				#endif
+				}
+				//else
+				{
+				#ifdef REVERSE_EXTENSION_POINTER_SET_TYPE
+					ptr->evolution_.emplace(this);
+					//insertSet(ptrs, ptr->evolution_);
+				#else
+					
+					#ifndef NOT_MERGE_PSEUDO
+					std::size_t sz = ptr->evolution_.size();
+					#endif
+					insertMergedOnce(this, ptr->evolution_);
+				#ifndef NOT_MERGE_PSEUDO
+					//assert(!further || reductAtoms_  || ptr->evolution_.size() == sz);
+					//std::cout << (int)further << "," << reductAtoms_ << "DOWNTHING: " << ptr << "," << ptr->atoms_ << "," << ptr->reductAtoms_ << std::endl;
+					assert(!further || reductAtoms_  || ptr->evolution_.size() == sz);
+				#endif
+				#endif
+				}
 			#ifndef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 				assert(!ptr->isPseudo() || isPseudo());
 			#endif
+				last = ptr;
 			}
+		}
 	#endif
 		//std::cout << "uppointer" << std::endl;
 	}
@@ -413,7 +593,7 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 	#endif
 	}
 
-	CertificateDynAspTuple* CertificateDynAspTuple::clone(Certificate_pointer_set& certificates, const ExtensionPointer& ptr)
+	CertificateDynAspTuple* CertificateDynAspTuple::clone(Certificate_pointer_set* certificates, const ExtensionPointer& ptr)
 	{
 		CertificateDynAspTuple* newTuple = this->clone();
 		//increase();
@@ -428,7 +608,14 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 	#endif
 		newTuple->weight_ = this->weight_;
 		//TODO: remove const cast!?
-		newTuple->duplicate_ = this; //const_cast<SimpleDynAspTuple*>(this);
+		assert(this->getClone() == this);
+		newTuple->duplicate_ = this;//->getClone(); //const_cast<SimpleDynAspTuple*>(this);
+
+	#ifdef USE_N_PASSES
+		if (duplicate_ == nullptr)	//CLAIM that this thing (me) is not allowed to be removed/deleted!
+			duplicate_ = this;
+	#endif
+
 		//TODO: move semantics
 	#ifdef EXTENSION_POINTERS_SET_TYPE
 		newTuple->origins_.insert(ptr);
@@ -437,9 +624,63 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 	#endif
 		//TODO: make evolution_ easy to copy and then do not copy :D
 		//newClone->evolution_ = this->evolution_;
-		newTuple->certificate_pointer_set_ = &certificates;
+	#ifdef USE_N_PASSES
+		newTuple->certsdone_ = this->certsdone_;
+	#endif
+		newTuple->certificate_pointer_set_ = certificates;
 		//newClone->duplicate_ = true;
+	#ifdef SUPPORTED_CHECK
+		newTuple->supp_ = this->supp_;
+	#endif
 		return newTuple;
+	}
+
+	CertificateDynAspTuple::Certificate_pointer_set* CertificateDynAspTuple::cloneCertificates(unsigned char 
+	#ifdef USE_N_PASSES
+	pass
+	#endif
+	
+	) const
+	{
+		Certificate_pointer_set *tupleType = certificate_pointer_set_;
+		#ifdef USE_N_PASSES
+			assert(dynasp::create::passes() >= 4 || tupleType == nullptr || certsdone_ > pass);
+		#endif
+		if (tupleType == nullptr ||
+			#ifdef USE_N_PASSES
+				certsdone_ > pass
+			#else
+				tupleType != nullptr	//tautology
+			#endif
+			)
+		{
+			tupleType = new Certificate_pointer_set(); //TupleType();
+		#ifdef USE_N_PASSES
+			if (dynasp::create::passes() >= 4 && pass >= 1 && certificate_pointer_set_ != nullptr)		//binary search for first pseudo cert
+			{
+				tupleType->reserve(certificate_pointer_set_->size());
+				for (const auto& p : *certificate_pointer_set_)
+					if (!p.cert->isPseudo())		
+					#ifdef VEC_CERT_TYPE
+						tupleType->push_back(p); //CertificateDynAspTuple::DynAspCertificatePointer(up, true));
+					#else
+						tupleType->insert(p); //CertificateDynAspTuple::DynAspCertificatePointer(up, true));
+					#endif
+
+					/*if (me.certificate_pointer_set_->back()->cert->isPseudo())
+							{
+								TupleType::iterator itx = std::lower_bound(me.certificate_pointer_set_->begin(), me.certificate_pointer_set_->end(), me.certificate_pointer_set_->back(), *this);
+								assert(itx != me.certificate_pointer_set_->end());
+								tupleType = new TupleType(me.certificate_pointer_set_->begin(), itx);
+							}
+							else
+								tupleType = new TupleType(me.certificate_pointer_set_->begin(), me.certificate_pointer_set_->end());*/
+			}
+						/*else	//TODO: improve!
+							tupleType = new TupleType();*/
+		#endif
+		}
+		return tupleType;
 	}
 
 	#ifndef INT_ATOMS_TYPE
@@ -458,7 +699,8 @@ void CertificateDynAspTuple::mergePtrs(IDynAspTuple &merg)
 //TODO: implement mergeData
 void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, CertificateDynAspTuple::ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild, bool newTuple)
 {
-	assert(oldTuple->getClone() == oldTuple);
+	if (dynasp::create::passes() < 4)
+		assert(oldTuple->getClone() == oldTuple);
 	#ifdef CORRECT_WEIGHT_REORGANIZATION
 	assert(oldTuple->solutions_);
 	#endif
@@ -477,11 +719,14 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 	auto it = origin->begin();
 	assert(it != origin->end());
 
-	mpz_class splitCount = (*it)->solutions_;
+	BigNumber splitCount = (*it)->solutions_;
+	DBG("PAR "); DBG((*it));  DBG(" "); DBG((*it)->solutions_); DBG(std::endl);
 	unsigned int splitWeight = (*it)->weight_;
 
-	assert(oldTuple->getClone() == oldTuple);
+	if (dynasp::create::passes() < 4)
+		assert(oldTuple->getClone() == oldTuple);
 	unsigned int common_weight = 0;
+	float common_count = 1;
 
 	if (++it != origin->end())	//MORE THAN TWO CHILDREN, ASSUMING EQUI JOIN
 	{
@@ -500,6 +745,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 		atom_vector t;
 		t.insert(t.end(), oldTuple->atoms_.begin(), oldTuple->atoms_.end());
 		common_weight = info.instance->weight(t, f, info);
+		common_count = info.instance->cost(t, f, info);
 		#ifdef NON_NORM_JOIN
 			assert(false);	//TODO
 		#endif
@@ -507,6 +753,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 		#ifdef NON_NORM_JOIN
 			#ifdef INT_ATOMS_TYPE
 				common_weight = info.instance->weight(oldTuple->atoms_ & info.getJoinAtoms(), ~oldTuple->atoms_ & info.getJoinAtoms(), info);
+				common_count = info.instance->cost(oldTuple->atoms_ & info.getJoinAtoms(), ~oldTuple->atoms_ & info.getJoinAtoms(), info);
 			#else
 				assert(false);
 			#endif
@@ -518,6 +765,15 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 			f
 		#endif
 		, info);
+		
+		common_count = info.instance->cost(oldTuple->atoms_, 
+		#ifdef INT_ATOMS_TYPE
+			~oldTuple->atoms_ & info.getAtoms()
+		#else
+			f
+		#endif
+		, info);
+
 		#endif
 	#endif
 	}
@@ -527,6 +783,10 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 			atom_vector t = info.getAtoms() & ~info.transform(info.instance->getNodeData(firstChild).getAtoms(), firstChild);
 			common_weight = info.instance->weight(t & oldTuple->atoms_, t & ~oldTuple->atoms_, info);
 			splitWeight += common_weight;
+
+			common_count = info.instance->cost(t & oldTuple->atoms_, t & ~oldTuple->atoms_, info);
+			splitCount *= common_count;
+
 		#else
 			assert(false);	//TODO
 		#endif
@@ -536,8 +796,9 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 
 	for (; it != origin->end(); ++it)
 	{
+		DBG("it sol: "); DBG((*it)->solutions_); DBG(std::endl);
 		//assert((*it)->solutions_);
-		splitCount *= (*it)->solutions_;
+		splitCount *= (*it)->solutions_ / common_count;
 		assert((*it)->weight_ >= common_weight);
 		splitWeight += (*it)->weight_ - common_weight;
 	}
@@ -559,8 +820,11 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 	//unsigned int minWeight = splitWeight;
 	if (newTuple)
 	{
-		solutions_ = splitCount;
-		weight_ = splitWeight;
+		if (oldTuple != this)
+		{
+			solutions_ = splitCount;
+			weight_ = splitWeight;
+		}
 	}
 	else if (weight_ >= splitWeight)
 	{
@@ -575,7 +839,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 			if (it == origin)
 				continue;
 			unsigned int weight = 0;
-			mpz_class count = 1;
+			BigNumber count = 1;
 
 			for (auto *t : *it)
 			{
@@ -614,7 +878,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 
 	//for (auto& e : oldTuple->origins_)
 
-	mpz_class minCount = 0;
+	BigNumber minCount = 0;
 	unsigned int minWeight = (unsigned int)(-1);
 	for (auto it = oldTuple->origins_.begin(); it != oldTuple->origins_.end(); ++it)
 	{
@@ -624,14 +888,17 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 		auto itx = it->begin();
 		assert(itx != it->end());
 		unsigned int weight = (*itx)->weight_;
-		mpz_class count = (*itx)->solutions_;
+		BigNumber count = (*itx)->solutions_;
 		if (++itx == it->end())
+		{
 			weight += common_weight;
+			count *= common_count;
+		}
 		for (; itx != it->end(); ++itx)
 		{
 			assert((*itx)->weight_ >= common_weight);
 			weight += (*itx)->weight_ - common_weight;
-			count *= (*itx)->solutions_;
+			count *= (*itx)->solutions_ / common_count;
 		}
 		if (count == 0)
 			continue;
@@ -640,6 +907,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 		if (weight == splitWeight)	//we found something else with the same weight, can never be less than the minimum!
 		{
 			oldTuple->solutions_ -= splitCount;
+			assert(oldTuple->solutions_ >= 0);
 			//oldTuple->weight_ = splitWeight;
 			assert(oldTuple->weight_ == splitWeight);
 			return;
@@ -660,7 +928,7 @@ void CertificateDynAspTuple::mergeData(CertificateDynAspTuple* oldTuple, Certifi
 	oldTuple->solutions_ = minCount;
 #else
 	//this->duplicate_ = oldTuple;
-	mpz_class counts;
+	BigNumber counts;
 	// 2 Cases:
 	//if (oldExtendedTuple)	//new tuple created (~> not found)
 	{
@@ -704,6 +972,8 @@ std::size_t CertificateDynAspTuple::joinHash(htd::vertex_t child, const atom_vec
 	#else*/
 	//NOTE: info.getAtoms() due to RuleSetDynAspTuple, in other words: ONLY JOIN ATOMS!
 //#ifdef USE_LAME_JOIN
+		//std::cout << atoms_ << "," << reductAtoms_ << "," << atoms << "->" <<  (TO_INT(info.transform(atoms_,child) & atoms)) << "," << ((TO_INT(info.transform(reductAtoms_,child) & atoms) << (INT_ATOMS_TYPE - 0))) << "," << ((TO_INT(info.transform(atoms_,child) & atoms)) | ((TO_INT(info.transform(reductAtoms_,child) & atoms) << (INT_ATOMS_TYPE - 0))))  << std::endl;
+
 		return TO_INT(info.transform(atoms_,child) & atoms) | (TO_INT(info.transform(reductAtoms_,child) & atoms) << (INT_ATOMS_TYPE - 0));
 		//return TO_INT(atoms_ & atoms) | (TO_INT(reductAtoms_ & atoms) << (INT_ATOMS_TYPE - 0));
 /*#else
@@ -879,7 +1149,7 @@ size_t CertificateDynAspTuple::hash() const
 
 	h.add(this->mergeHash());
 	h.add(weight_);
-	//FIXME: add support for mpz_class
+	//FIXME: add support for BigNumber
 	//h.add(solutions_);
 
 	return h.get();
@@ -889,6 +1159,7 @@ IDynAspTuple *CertificateDynAspTuple::project(const TreeNodeInfo &info, size_t c
 {
 	CertificateDynAspTuple *newTuple = clone(); //new SimpleDynAspTuple(/*false*/);
 	const CertificateDynAspTuple &me = dynasp::create::passes() >= 2 ? *this : *getClone()
+
 /*#ifdef SEVERAL_PASSES
 			*this
 #else
@@ -896,9 +1167,31 @@ IDynAspTuple *CertificateDynAspTuple::project(const TreeNodeInfo &info, size_t c
 #endif*/
 			;
 
+
+	#ifdef SUPPORTED_CHECK
+	#ifdef INT_ATOMS_TYPE	
+		atom_vector ats = info.transform((me.supp_), child);
+		atom_vector nats =  info.instance->getNodeData(child).getAtoms() & (~me.supp_);
+		DBG("PROJECT_PROP_RULE "); DBG_COLL(me.supp_); DBG( " -> "); DBG_COLL(ats); DBG(std::endl);
+		//if (POP_CNT(info.int_rememberedRules & me.atoms_) < POP_CNT(info.instance->getNodeData(child).getRules() & me.atoms_))
+		if (!create::isSatOnly() &&  POP_CNT(info.transform(nats, child)) < POP_CNT(nats))
+		{
+			#ifdef USE_LAME_BASE_JOIN
+				assert(false);	//we might here kick out stuff, we do not want to kick out yet!
+			#endif
+			//std::cout << "kicking out: " << nats << "," << info.transform(nats, child) << std::endl;
+			//DBG(~ats); DBG(" vs "); DBG(~me.supp_); DBG(std::endl);
+			DBG("kicking out "); DBG(&me); DBG(std::endl);
+			return nullptr;
+		}
+	#endif
+	#endif
+
 #ifdef INT_ATOMS_TYPE
 #ifndef USE_PSEUDO
+	#ifdef NOT_MERGE_PSEUDO
 	assert(me.reductAtoms_ == 0 || me.reductAtoms_ >> (INT_ATOMS_TYPE - 1) != 0);
+	#endif
 #endif
 	newTuple->atoms_ = info.transform(me.atoms_, child);
 	newTuple->reductAtoms_ = info.transform(me.reductAtoms_, child) 
@@ -906,6 +1199,9 @@ IDynAspTuple *CertificateDynAspTuple::project(const TreeNodeInfo &info, size_t c
 			| (this->reductAtoms_ & atom_vector(1 << (INT_ATOMS_TYPE - 1)))
 		#endif
 		;
+	#ifdef SUPPORTED_CHECK
+		newTuple->supp_ = ats; //info.transform(me.supp_, child);
+	#endif
 
 	DBG("PROJECT "); DBG_COLL(me.atoms_); DBG(" -> "); DBG_COLL(newTuple->atoms_); DBG(std::endl); 
 	DBG("PROJECT2 "); DBG_COLL(me.reductAtoms_); DBG(" -> "); DBG_COLL(newTuple->reductAtoms_); DBG(std::endl); 
@@ -1014,6 +1310,9 @@ bool CertificateDynAspTuple::merge(const IDynAspTuple &tuple)
 #endif
 #endif
 
+	/*std::cout << "merging: " << weight_ << "," << mergee.weight_ << std::endl;
+	std::cout << "resulting evolution: " << evolution_.size() << std::endl;*/
+
 	//TODO: if certificates are in subset relation, we can sometimes merge
 	//if(certificates_ != mergee.certificates_) return false;
 
@@ -1028,6 +1327,10 @@ bool CertificateDynAspTuple::merge(const IDynAspTuple &tuple)
 		solutions_ += mergee.solutions_;
 	}
 //#endif
+
+	#ifdef SUPPORTED_CHECK
+		supp_ |= mergee.supp_;
+	#endif
 
 	DBG("\t=>\t"); DBG_COLL(atoms_); DBG(" "); //DBG_SCERT(certificates_);
 
@@ -1070,7 +1373,7 @@ void CertificateDynAspTuple::cleanUpRecursively()
 				ptrComponent->cleanUpRecursively();
 		}
 	}
-	DBG("CLEANUP: "); DBG(this); DBG("\n");
+	DBG("FREECLEANUP: "); DBG(this); DBG("\n");
 	//std::cout << "delete " << this << std::endl;
 	delete this;
 #endif
@@ -1089,6 +1392,18 @@ bool CertificateDynAspTuple::cleanUpRoot(const TreeNodeInfo& info)
 	return false;
 }
 
+bool CertificateDynAspTuple::cleanUpNonSolRoot(htd::vertex_t node, const TreeNodeInfo& info, const htd::ITreeDecomposition &decomposition, INodeTupleSetMap &tuples, bool realDelete)
+{
+#ifdef CLEANUP_SOLUTIONS
+	DBG("CLEANUP_NON_SOLROOT"); DBG("\n");
+	if (!isSolution(info) && (realDelete || solutions_ > 0)) // isSolution())
+	{
+		cleanUpRecursively(node, decomposition, tuples, realDelete ? IDynAspTuple::DM_DELETE : IDynAspTuple::DM_MARK);
+		return true;
+	}
+#endif
+	return false;
+}
 
 bool CertificateDynAspTuple::cleanUpRoot(htd::vertex_t node, const TreeNodeInfo& info, const htd::ITreeDecomposition &decomposition, INodeTupleSetMap &tuples, bool realDelete)
 {
@@ -1107,7 +1422,11 @@ bool CertificateDynAspTuple::cleanUp()
 {
 #ifdef CLEANUP_SOLUTIONS
 	DBG("CLEANUP"); DBG("\n");
-	if (evolution_.size() == 0)    //not of use any more
+	if (evolution_.size() == 0
+/*#ifdef SUPPORTED_CHECK	
+	&& (getClone() == this || getClone()->evolution_.size() == 0)
+#endif*/
+	)    //not of use any more
 	{
 		cleanUpRecursively();
 		return true;
@@ -1126,12 +1445,16 @@ void CertificateDynAspTuple::cleanUpRecursively(htd::vertex_t node, const htd::I
 
 		std::unordered_set<CertificateDynAspTuple*> done;
 		//done.reserve(origins_.size() * TYPICAL_CHILDS);
-		for (const auto& ptr : origins_)
+		for (auto iptr = origins_.begin(); iptr != origins_.end();)
+		//for (const auto& ptr : origins_)
 		{
+			const auto& ptr = *iptr;
 			unsigned int idx = 0;
+			//bool del = false;
 			for (const auto& ptrComponent : ptr)
 			//for (unsigned int p = 0; p < ptr.size(); ++p)
 			{
+				DBG("downclean: "); DBG(ptrComponent); DBG(" by "); DBG(this); DBG(std::endl);
 				if (!done.insert(ptrComponent).second)
 				{
 					++idx;
@@ -1154,10 +1477,21 @@ void CertificateDynAspTuple::cleanUpRecursively(htd::vertex_t node, const htd::I
 			#endif
 				//propagate towards leaves
 				if (ptrComponent->evolution_.size() == 0 && (mode != IDynAspTuple::DM_MARK || ptrComponent->solutions_ > 0))
+				{
+					//del = true;
+					DBG("to cleanup: "); DBG(ptrComponent); DBG(ptrComponent->reductAtoms_); DBG("\n");
 					ptrComponent->cleanUpRecursively(decomposition.childAtPosition(node, idx), decomposition, tuples, mode == IDynAspTuple::DM_MARK ? IDynAspTuple::DM_MARK : IDynAspTuple::DM_ERASE);//  true);
+				}
 				//ptrComponent->cleanUp(node, idx, decomposition, tuples);
 				++idx;
 			}
+		//TODO: DANGEROUS! NON_SOLUTIONS NEEDED FOR PSEUDO SOLUTIONS!
+		//#ifdef NOT_MERGE_PSEUDO
+			if (/*del &&*/ create::isSupported() && mode == IDynAspTuple::DM_MARK)	//if we only mark, we should!!! remove the reference, otherwise double free in bad cases
+				iptr = origins_.erase(iptr);
+			else
+		//#endif
+				++iptr;
 		}
 		/*for (const auto& ptr : origins_)
 			for (const auto& ptrComponent : ptr)
@@ -1180,8 +1514,11 @@ void CertificateDynAspTuple::cleanUpRecursively(htd::vertex_t node, const htd::I
 		{
 			case IDynAspTuple::DM_ERASE:
 				tuples[node].erase(*this);
+				DBG("FREEERASE: "); DBG(this); DBG(std::endl);
 				//NO break here!!
 			case IDynAspTuple::DM_DELETE:
+				DBG("FREEDELETE: "); DBG(this); DBG(","); DBG(atoms_); DBG(reductAtoms_); DBG("\n");
+				fflush(stdout);
 				delete this;
 				break;
 			case IDynAspTuple::DM_MARK:
@@ -1215,33 +1552,56 @@ bool CertificateDynAspTuple::cleanUp(htd::vertex_t node, const htd::ITreeDecompo
 	return false;
 }
 
-bool CertificateDynAspTuple::isSolution(const TreeNodeInfo& /*info*/) const
+bool CertificateDynAspTuple::isSolution(const TreeNodeInfo& 
+#ifdef SUPPORTED_CHECK
+	info
+#endif
+) const
 {
 	DBG("isSolution "); DBG(this); DBG("(~>"); DBG(duplicate_); DBG(")"); DBG(" "); DBG(isPseudo()); DBG(","); //  certificate_pointer_set_->size()  << std::endl;
 	if (certificate_pointer_set_ == nullptr)
-		DBG("ASSERT: certificate_pointer_set_ is NULL");
+		DBG("ASSERT: certificate_pointer_set_ is NULL ");
 	else
 	{
 		DBG(certificate_pointer_set_->size());
 		DBG(" solution: "); DBG((certificate_pointer_set_->size() == 0 ||
 								 (certificate_pointer_set_->size() == 1 && !certificate_pointer_set_->begin()->strict))); DBG(" / ");
-		DBG(this->solutions_); DBG("@"); DBG(this->weight_);
 	}
+	DBG(this->solutions_); DBG("@"); DBG(this->weight_);
 	DBG("\n");
 	//TODO: uncomment pseudo
 #ifndef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 #ifndef SINGLE_LAYER
 //#ifndef CLEANUP_SOLUTIONS
-	assert(!(isPseudo() ^ (certificate_pointer_set_ == nullptr)));
+	#ifdef NOT_MERGE_PSEUDO
+	if (!create::isSatOnly() && !create::isSupported() && !create::isProjection())
+		assert(!(isPseudo() ^ (certificate_pointer_set_ == nullptr)));
+	#endif
 //#endif
 #endif
 #endif
 	//return true;
-	return !isPseudo() && (certificate_pointer_set_ == nullptr || certificate_pointer_set_->size() == 0 ||
+	return 
+	#ifdef SUPPORTED_CHECK
+		(create::isSatOnly() || ((~supp_ & info.getAtoms()) == 0)) && (supp_ != ~((atom_vector)0)) &&
+	#endif
+	#ifndef NOT_MERGE_PSEUDO
+		solutions_ > 0 &&
+	#endif
+	!isPseudo() && (certificate_pointer_set_ == nullptr || certificate_pointer_set_->size() == 0 ||
 						   (certificate_pointer_set_->size() == 1 && !certificate_pointer_set_->begin()->strict));
 }
 
-const mpz_class& CertificateDynAspTuple::solutionCount() const
+/*#ifdef SUPPORTED_CHECK
+atom_t CertificateDynAspTuple::checkSupportedRules(const TreeNodeInfo& info) const
+{
+	atom_t supp = (~atoms_ & info.getAtoms());
+	return  checkRules(atoms_, ~atoms_ & info.getAtoms(), reductAtoms_, supp, info.rememberedRules, info) | 
+		checkRules(atoms_, ~atoms_ & info.getAtoms(), reductAtoms_, supp, info.introducedRules, info);
+}
+#endif*/
+
+const BigNumber& CertificateDynAspTuple::solutionCount() const
 {
 	return solutions_;
 }
@@ -1250,6 +1610,19 @@ size_t CertificateDynAspTuple::solutionWeight() const
 {
 	return weight_;
 }
+#ifdef BNB_CRAFT_ALGO
+	std::size_t CertificateDynAspTuple::addExtPtr(ExtensionPointer&& ptr, std::size_t answer)
+	{
+		std::size_t pos = 0;
+		auto& extPtr = insertMergedOnce(ptr, origins_, &pos);
+		//TODO: Design flaw
+		const_cast<ExtensionPointer&>(extPtr).addAnswerSetContrib(answer);
+		return pos;
+		/*for (auto& tupl : extPtr)
+			static_cast<CertificateDynAspTuple *>(tupl)->addAnswerSetContrib(answer);*/
+		//origins_.emplace_back(ptr);	
+	}
+#endif
 
 bool CertificateDynAspTuple::operator==(const ITuple &other) const
 {
@@ -1291,6 +1664,11 @@ bool CertificateDynAspTuple::operator==(const ITuple &other) const
 		&& pseudo == tmpother.pseudo
 	#endif
 	#endif
+
+	#ifdef  BNB_CRAFT_ALGO
+		&& weight_ == tmpother.weight_
+	#endif
+		
 		;//&& certificates_ == tmpother.certificates_;
 
 
@@ -1366,12 +1744,18 @@ CertificateDynAspTuple::ESubsetRelation CertificateDynAspTuple::checkRelationExt
 	if (dynasp::create::isCompr() && dynasp::create::reductSpeedup()) {
 		//get everything which is in the atoms, but not within other.reductatoms or other.atom
 		//info.getAtoms() due to RuleSetDynAspTuple
-		if ((atoms_ & ~(other.reductAtoms_ | other.atoms_) & info.int_negatedAtoms) == 0)
+		assert((~info.int_negatedAtoms & other.reductAtoms_ & info.getAtoms()) == 0);
+		if ((atoms_ & ~(other.reductAtoms_ | other.atoms_) & (info.int_negatedAtoms)) == 0 &&
+		(atoms_ & ~(other.atoms_) & info.int_negatedChoiceAtoms) == 0 
+		)
+		{
+			//std::cout << (atoms_ & ~(other.reductAtoms_ | other.atoms_)) << "," << info.int_negatedChoiceAtoms << std::endl;
 			//extended criteria
 			//NOTE: we make other.reductAtoms_ & info.getAtoms() to project away the MSB for pseudo solution!
 			//if (POP_CNT(other.atoms_) + POP_CNT(other.reductAtoms_ & info.getAtoms()) <= POP_CNT(atoms_))
 			if (POP_CNT(other.atoms_ & info.getAtoms()) + POP_CNT(other.reductAtoms_ & info.getAtoms()) + POP_CNT(atoms_ & info.getAtoms() & ~info.int_negatedAtoms & ~other.atoms_) == POP_CNT(atoms_ & info.getAtoms()))
 				rel = checkRelation(other, info, false);
+		}
 	} else { //#else
 		//NOTE: we make other.reductAtoms_ & info.getAtoms() to project away the MSB for pseudo solution!
 		if (POP_CNT(other.atoms_ & info.getAtoms()) + POP_CNT(other.reductAtoms_ & info.getAtoms()) == POP_CNT(atoms_ & info.getAtoms()))	//partition!

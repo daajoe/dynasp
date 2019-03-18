@@ -1,25 +1,27 @@
-#ifndef DYNASP_DYNASP_DYNASPALGORITHM_H_
-#define DYNASP_DYNASP_DYNASPALGORITHM_H_
+#ifndef CDYNASP_DYNASP_DYNASPALGORITHM_H_
+#define CDYNASP_DYNASP_DYNASPALGORITHM_H_
 
 #include <dynasp/global>
 
 #include <sharp/main>
 
+#include <unordered_set>
+
 #include <htd/main.hpp>
 #include <dynasp/Atom.hpp>
 #include "IDynAspTuple.hpp"
 
-#include <dynasp/DependencyGraphEvaluator.hpp>
+#include <dynasp/IGroundAspRule.hpp>
+
 namespace dynasp
 {
 
 	class TreeNodeInfo;
-	class DYNASP_API DynAspAlgorithm : public sharp::ITreeTupleAlgorithm
+	class DYNASP_API ClaspAlgorithm : public sharp::ITreeTupleAlgorithm
 	{
 	public:
-		virtual void setDepEval(DependencyGraphEvaluator* eval) { eval_ = eval; }
-		DynAspAlgorithm();
-		virtual ~DynAspAlgorithm();
+		ClaspAlgorithm();
+		virtual ~ClaspAlgorithm();
 
 		virtual std::vector<const htd::ILabelingFunction *>
 				preprocessOperations() const;
@@ -33,12 +35,12 @@ namespace dynasp
 
 		virtual bool needAllTupleSets() const;
 
-		void setFurther(unsigned char f) { further = f; }
-		//virtual void onExit() const { }
-	protected:
-		DependencyGraphEvaluator* eval_;
-		unsigned char further;
+		void setFurther(bool f) { further = f; }
 
+	private:
+		bool further;
+		unsigned ext;
+		std::unordered_set<const IGroundAspRule*> intros;
 		/*struct Impl;
 		Impl * const impl;*/
 

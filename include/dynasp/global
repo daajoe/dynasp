@@ -45,6 +45,7 @@
 
 //#define USE_LAME_JOIN
 //#define USE_LAME_BASE_JOIN
+#define ENUM_SOLUTIONS
 
 //REQUIRED FOR CORRECTNESS!
 #define BASE_JOIN_BOOST
@@ -59,6 +60,7 @@
 //#define USE_CLEVER_COMPRESSION
 
 #define NON_NORM_JOIN
+//#define USE_DYNW_WEIGHTS
 
 //#define SINGLE_LAYER
 //#define MERGE_PASS_TWO_THREE
@@ -66,6 +68,9 @@
 #define SECOND_PASS_COMPRESSED
 #define THREE_PASSES
 #define SEVERAL_PASSES
+//#define USE_N_PASSES
+//#define BNB_CRAFT_ALGO
+/*//#define EXTENSION_POINTERS_LIST_TYPE*/
 
 #define CLEANUP_SOLUTIONS
 #define CLEANUP_COUNTER_SOLUTIONS
@@ -77,21 +82,33 @@
 //actually not really a benefit?!
 //#define REVERSE_EXTENSION_POINTER_SET_TYPE
 
+//#define REVERSE_EXTENSION_POINTER_SEARCH_IDX
+#define CERT_IMPROVEMENT
+#define CACHE_CERTS
+
 //#define USE_PSEUDO
 //TODO: Mit Vorsicht zu genieszen, still Ok?
 //#define COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 //#define YES_BUT_NO_PSEUDO
 
+//#define assert(_) 
+//modify Makefile: -O3 -DNDEBUG #-g
 
 //#define TYPICAL_CHILDS 3
 
+//#define TAKE_RISKS
+//#define TAKE_PSEUDO_RISKS
+
 //#define VEC_ATOMS_TYPE
-#define INT16_ATOMS_TYPE
-//#define INT32_ATOMS_TYPE
+//#define INT16_ATOMS_TYPE
+#define INT32_ATOMS_TYPE
 //#define INT8_ATOMS_TYPE
 #define DO_NOT_USE_BITSET
 //#define INT32_ATOMS_TYPE
 
+#define SUPPORTED_CHECK
+
+#define NOT_MERGE_PSEUDO
 #define CORRECT_WEIGHT_REORGANIZATION
 
 

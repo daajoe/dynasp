@@ -28,6 +28,17 @@
 
 namespace dynasp
 {
+	using BigNumber = 
+	#ifndef USE_DYNW_WEIGHTS
+		mpz_class 
+	#else
+		mpf_class
+	#endif
+		;
+
+
+
+
 	class DYNASP_API IDynAspTuple : public sharp::ITuple
 	{
 	public:
@@ -40,6 +51,7 @@ namespace dynasp
 
 		virtual inline ~IDynAspTuple() { }
 
+		virtual bool isNewProjectionOk(unsigned char further) const = 0;
 		virtual bool merge(const IDynAspTuple &tuple) = 0;
 
 		virtual bool isSolution(const TreeNodeInfo& info/*size_t pass*/) const = 0;
@@ -47,25 +59,29 @@ namespace dynasp
 		virtual bool cleanUp() { return false; };
 		virtual bool cleanUp(htd::vertex_t /*node*/, const htd::ITreeDecomposition &/*decomposition*/, sharp::INodeTupleSetMap &/*tuples*/, bool /*doDelete*/) { return false; };
 		virtual bool cleanUpRoot(htd::vertex_t /*node*/, const TreeNodeInfo&,  const htd::ITreeDecomposition &/*decomposition*/, sharp::INodeTupleSetMap &/*tuples*/, bool /*doDelete*/) { return false; };
+		virtual bool cleanUpNonSolRoot(htd::vertex_t /*node*/, const TreeNodeInfo&,  const htd::ITreeDecomposition &/*decomposition*/, sharp::INodeTupleSetMap &/*tuples*/, bool /*doDelete*/) { return false; };
 		virtual bool cleanUpRoot(const TreeNodeInfo&) { return false; };
 		virtual void cleanUpSecondLevel() { }
 
-		virtual const mpz_class& solutionCount() const = 0;
+		virtual const BigNumber& solutionCount() const = 0;
 		virtual std::size_t solutionWeight() const = 0;
 		virtual std::size_t joinHash(const atom_vector &atoms, const TreeNodeInfo& info) const = 0;
 		virtual std::size_t joinHash(htd::vertex_t child, const atom_vector &atoms, const TreeNodeInfo& info) const = 0;
 		//virtual std::size_t joinHash(const vertex_container &atoms) const = 0;
 		virtual std::size_t mergeHash() const = 0;
+		virtual inline const IDynAspTuple* getClone() const { return nullptr; }
+		virtual inline bool isClone() const { return false; }
+		//virtual bool isClone() const { return false; }
 
 		//non-abstract methods
 		//PRECONDITION: project() successfully has been called before
 		virtual void projectPtrs(IDynAspTuple& /*newTuple*/) { };
 		//PRECONDITION: merge() successfully has been called before
-		virtual void mergePtrs(IDynAspTuple &/*tuple*/) { };
+		virtual void mergePtrs(IDynAspTuple &/*tuple*/, bool) { };
 		//virtual void mergePtrs(ExtensionPointer &/*tuple*/) { };
 		//PRECONDITION: join is feasible, i.e. join() successfully has been called before
 		virtual void joinPtrs(IDynAspTuple* /*tupleleft*/, IDynAspTuple* /*tupleright*/, bool reuseMemory = true) { (void)reuseMemory; };
-		virtual void postEvaluate() { };
+		virtual void postEvaluate(unsigned char) { };
 
 		virtual void introduceFurther(
 				const TreeNodeInfo &/*info*/,

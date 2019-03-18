@@ -31,10 +31,24 @@ namespace dynasp
 		virtual bool isPositiveBodyAtom(atom_t atom) const;
 		virtual bool isNegativeBodyAtom(atom_t atom) const;
 
+		virtual void updateDependencyGraph(htd::DirectedGraph& graph) const;
+		
+		virtual const std::string toString() const;
+
+		virtual bool isFact() const;
+		virtual bool isConstrainedFact() const;
+		virtual bool isConstrainedNFact() const;
+		virtual bool isRule() const;
+		virtual bool isSimpleRule() const;
+
 		virtual SatisfiabilityInfo check(
 				const atom_vector &trueAtoms,
 				const atom_vector &falseAtoms,
 				const atom_vector &reductFalseAtoms,
+		#ifdef SUPPORTED_CHECK
+			atom_vector *supp,
+
+		#endif
 				const TreeNodeInfo &info
 				) const;
 
@@ -42,6 +56,10 @@ namespace dynasp
 				const atom_vector &newTrueAtoms,
 				const atom_vector &newFalseAtoms,
 				const atom_vector &newReductFalseAtoms,
+		#ifdef SUPPORTED_CHECK
+			atom_vector *supp,
+
+		#endif
 				SatisfiabilityInfo establishedInfo,
 				const TreeNodeInfo &info
 				) const;
@@ -55,6 +73,7 @@ namespace dynasp
 				const TreeNodeInfo &info
 				) const;
 
+		virtual std::string toQBF(bool reduct, unsigned int id) const;
 		virtual const_iterator begin() const;
 		virtual const_iterator end() const;
 
@@ -94,6 +113,7 @@ namespace dynasp
 
 			virtual bool operator==(
 					const sharp::IConstEnumerator<atom_t> &other) const;
+			
 
 		private:
 			SetIter hbegin_, hend_;

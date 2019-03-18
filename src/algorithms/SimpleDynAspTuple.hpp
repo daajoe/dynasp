@@ -75,10 +75,16 @@ namespace dynasp
 
 		//certificate_set certificates_;
 
+#ifdef SUPPORTED_CHECK
+		virtual atom_set checkSupportedRules(const TreeNodeInfo& info);
+#endif		
 		static bool checkRules(
 				const atom_vector &trueAtoms,
 				const atom_vector &falseAtoms,
 				const atom_vector &reductFalseAtoms,
+			#ifdef SUPPORTED_CHECK
+				atom_vector *supp,
+			#endif
 				const rule_vector &rules,
 				const TreeNodeInfo& info
 				);

@@ -16,6 +16,8 @@ namespace dynasp
 	class IGroundAspInstance;
 	typedef	std::unordered_map<htd::vertex_t, size_t> AtomPositionMap;
 
+	using atom_container = std::unordered_set<htd::vertex_t>; 
+
 	struct TreeNodeInfo
 	{
 		IGroundAspInstance *instance;
@@ -28,6 +30,10 @@ namespace dynasp
 			atom_vector int_introducedAtoms;
 			atom_vector int_rememberedAtoms;
 			atom_vector int_negatedAtoms;
+			atom_vector int_negatedChoiceAtoms;
+			atom_vector int_projectionAtoms;
+			atom_vector int_constrainedFactAtoms;
+			atom_vector int_constrainedNFactAtoms;
 			AtomPositionMap atomAtPosition;
 
 			atom_vector int_introducedRules;
@@ -60,17 +66,20 @@ namespace dynasp
 		) : instance(&i), introducedAtoms(ia), introducedRules(ir), rememberedAtoms(ra), rememberedRules(rr)
 #ifdef INT_ATOMS_TYPE
 		//,/*int_introducedAtoms(iia), int_rememberedAtoms(ira),*/ atomAtPosition(aap)
-		,int_introducedAtoms(0), int_rememberedAtoms(0), int_negatedAtoms(0), atomAtPosition(aap), int_introducedRules(0), int_rememberedRules(0), ruleAtPosition(rap)
+		,int_introducedAtoms(0), int_rememberedAtoms(0), int_negatedAtoms(0), int_negatedChoiceAtoms(0), int_projectionAtoms(0), int_constrainedFactAtoms(0), int_constrainedNFactAtoms(0), atomAtPosition(aap), int_introducedRules(0), int_rememberedRules(0), ruleAtPosition(rap)
 		#ifdef NON_NORM_JOIN
-			,int_joinAtoms(0), int_joinRules(0)
+			,int_joinAtoms(0), int_joinRules(0) 
 		#endif
 #endif
 		{}
 
-		TreeNodeInfo() : instance(nullptr) { }
+		TreeNodeInfo() : instance(nullptr)  { }
 
 
 	#ifdef INT_ATOMS_TYPE
+		dynasp::atom_vector project(const atom_container& atoms) const;
+		dynasp::atom_vector project(htd::ConstCollection<htd::vertex_t>& atoms) const;
+		void transformAndExtract(const dynasp::atom_vector& atoms, htd::vertex_container& atoms_out) const;
 		dynasp::atom_vector transform(size_t child) const;
 		dynasp::atom_vector transform(const atom_vector &atoms, size_t child) const;
 		dynasp::atom_vector rule_transform(const atom_vector &atoms, size_t child) const;
@@ -78,6 +87,7 @@ namespace dynasp
 		//dynasp::atom_vector transform(const atom_vector &&atoms, size_t child) const;
 
 	#endif
+		
 	};
 
 } // namespace dynasp

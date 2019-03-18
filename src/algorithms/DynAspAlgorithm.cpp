@@ -44,7 +44,7 @@ namespace dynasp
 	using std::back_inserter;
 	using std::swap;
 
-	DynAspAlgorithm::DynAspAlgorithm() : further(false) {} //: impl(nullptr) { }
+	DynAspAlgorithm::DynAspAlgorithm() : eval_(nullptr), further(0)  {} //: impl(nullptr) { }
 
 	DynAspAlgorithm::~DynAspAlgorithm()
 	{
@@ -88,6 +88,26 @@ namespace dynasp
 			CertificateDynAspTuple::createPointerCache();*/
 
 		size_t childCount = decomposition.childCount(node);
+
+
+		DBG("preceeding tuples: "); DBG(node); DBG("("); DBG(childCount); DBG(") "); DBG(" ");
+	#ifdef DEBUG
+		for (size_t i = 0; i < childCount; ++i)
+		{
+			DBG("["); DBG(decomposition.childAtPosition(node, i)); DBG("]"); DBG(",");
+		}
+	#endif
+		DBG(outputTuples.size()); DBG(std::endl);
+		#ifdef DEBUG
+			for (const auto& o: outputTuples)
+			{
+				DBG(&o); DBG(",");  DBG(static_cast<const CertificateDynAspTuple&>(o).solutions_); DBG("@:"); DBG(static_cast<const CertificateDynAspTuple&>(o).weight_); DBG(","); DBG_COLL(static_cast<const CertificateDynAspTuple&>(o).atoms_);  DBG(","); DBG_COLL(static_cast<const CertificateDynAspTuple&>(o).reductAtoms_); static_cast<const CertificateDynAspTuple&>(o).debug(); DBG(","); DBG(static_cast<const CertificateDynAspTuple&>(o).isPseudo()); DBG(", orig_size: "); DBG(static_cast<const CertificateDynAspTuple&>(o).origins_.size());   DBG(std::endl);
+				
+			}
+		#endif
+
+
+
 		if (!further)
 		{
 
@@ -126,6 +146,14 @@ namespace dynasp
 					info.atomAtPosition.emplace(vertex, pos);
 					if (info.instance->isNegatedAtom(vertex))
 						info.int_negatedAtoms |= 1 << pos;
+					else if (info.instance->isNegatedChoiceAtom(vertex))
+						info.int_negatedChoiceAtoms |= 1 << pos; 
+					if (info.instance->isConstrainedFactAtom(vertex))
+						info.int_constrainedFactAtoms |= 1 << pos;
+					else if (info.instance->isConstrainedNFactAtom(vertex))
+						info.int_constrainedNFactAtoms |= 1 << pos;
+					if (info.instance->isProjectionAtom(vertex))
+						info.int_projectionAtoms |= 1 << pos;
 					info.int_introducedAtoms |= 1 << pos++;
 #endif
 				}
@@ -160,6 +188,14 @@ namespace dynasp
 					info.atomAtPosition.emplace(vertex, pos);
 					if (info.instance->isNegatedAtom(vertex))
 						info.int_negatedAtoms |= 1 << pos;
+					else if (info.instance->isNegatedChoiceAtom(vertex))
+						info.int_negatedChoiceAtoms |= 1 << pos;	
+					if (info.instance->isConstrainedFactAtom(vertex))
+						info.int_constrainedFactAtoms |= 1 << pos;
+					else if (info.instance->isConstrainedNFactAtom(vertex))
+						info.int_constrainedNFactAtoms |= 1 << pos;
+					if (info.instance->isProjectionAtom(vertex))
+						info.int_projectionAtoms |= 1 << pos;
 					info.int_rememberedAtoms |= 1 << pos++;
 #endif
 				}
@@ -180,10 +216,10 @@ namespace dynasp
 			
 			if (childCount >= 2)
 			{
-				const ConstCollection<vertex_t> joined =
-						decomposition.joinVertices(node);
+				const std::vector<vertex_t> *joined = computeJoinVertices(decomposition, node);
+						//decomposition.joinVertices(node);
 
-				for (auto i = joined.begin(); i != joined.end(); ++i)
+				for (auto i = joined->begin(); i != joined->end(); ++i)
 				{
 					vertex_t vertex = *i;
 					//FIXME: do this via labelling functions
@@ -211,6 +247,7 @@ namespace dynasp
 						//info.joinedAtoms.push_back(vertex);
 					}
 				}
+				delete joined;
 				DBG("JOINED: "); DBG(info.int_joinAtoms);
 				assert(info.introducedAtoms.size() == 0);
 			}
@@ -340,7 +377,7 @@ namespace dynasp
 		{
 			std::vector<unsigned int> its(childCount, 0);
 			std::vector<std::vector<IDynAspTuple *>*> begs(childCount, nullptr);
-			std::vector<std::unordered_map<unsigned int, std::vector<IDynAspTuple *> > > joins;
+			std::vector<std::unordered_map<std::size_t, std::vector<IDynAspTuple *> > > joins;
 
 			//its.reserve(childCount);
 			//begs.reserve(childCount);
@@ -349,13 +386,17 @@ namespace dynasp
 
 			//unsigned int hash = (unsigned int)-1;
 			//bool firstOk = true;
-			for (size_t childIndex = 0; childIndex < childCount; ++childIndex)
+			for (unsigned int childIndex = 0; childIndex < childCount; ++childIndex)
 			{
 				htd::vertex_t child = decomposition.childAtPosition(node, childIndex);
 				joins.emplace_back(tuples[child].size());
 				for (ITuple &tuple : tuples[child])
 				{
-					unsigned int h = static_cast<IDynAspTuple *>(&tuple)->joinHash(child,
+					DBG("testing tuple: "); DBG(&tuple); DBG(std::endl);
+					if (static_cast<IDynAspTuple *>(&tuple)->isClone())
+						continue;
+					assert(info.getJoinAtoms() == info.getAtoms() || dynasp::create::isNon());
+					std::size_t h = static_cast<IDynAspTuple *>(&tuple)->joinHash(child,
 #ifdef INT_ATOMS_TYPE
 	#ifdef NON_NORM_JOIN
 																				info.getJoinAtoms()
@@ -426,7 +467,7 @@ namespace dynasp
 					bool firstOk = false;
 					for (unsigned int childIndex = 0; childIndex < childCount; ++childIndex)
 					{
-						std::unordered_map<unsigned int, std::vector<IDynAspTuple *> >::iterator it = joins[childIndex].find(pj.first);
+						std::unordered_map<std::size_t, std::vector<IDynAspTuple *> >::iterator it = joins[childIndex].find(pj.first);
 						if (!(firstOk = it == joins[childIndex].end()))
 						{
 							//std::cout << "found for " << childIndex  << " hash " << pj.first << ","<< &(it->second) << std::endl;
@@ -471,7 +512,11 @@ namespace dynasp
 						CertificateDynAspTuple::EJoinResult pseudoJoin = joined->join(info, its, begs, decomposition, node, p);
 
 						#ifdef BASE_JOIN_BOOST
-						if (further && pseudoJoin != CertificateDynAspTuple::EJR_PSEUDO)
+						if (
+#ifdef NOT_MERGE_JOIN
+!create::isNon() &&
+#endif
+further && pseudoJoin != CertificateDynAspTuple::EJR_PSEUDO)
 							continue;
 						#endif
 
@@ -498,14 +543,18 @@ namespace dynasp
 						#ifdef EXTENSION_POINTERS_SET_TYPE
 							joined->origins_.insert(p);
 						#else
+							DBG("JOINTOX: "); DBG(p); DBG(std::endl);
 							joined->origins_.emplace_back(p);
 						#endif
+							DBG("ORIGIN FOR JOIN "); DBG(joined); DBG(": "); DBG(p); DBG(std::endl);
 							joined = static_cast<CertificateDynAspTuple*>(create::tuple(false));
 						}
 #else
 						const auto itg = generated.emplace(joined);
 						if (itg.second)
 						{
+
+							DBG("ORIGIN FOR JOIN "); DBG(joined); DBG(": "); DBG(p); DBG(std::endl);
 #ifdef EXTENSION_POINTERS_SET_TYPE
 							joined->origins_.insert(std::move(p));
 #else
@@ -564,6 +613,8 @@ namespace dynasp
 			for (ITuple &tuple : childTuples)
 			{
 				//assert(!further ^ (static_cast<CertificateDynAspTuple&>(tuple).isPseudo()  || static_cast<CertificateDynAspTuple&>(tuple).evolution_.size()));
+				if (static_cast<IDynAspTuple *>(&tuple)->isClone())
+						continue;
 
 				const IDynAspTuple &childTuple =
 						static_cast<const IDynAspTuple &>(tuple);
@@ -589,12 +640,17 @@ namespace dynasp
 						 !isIn && mergeIter != merged.end(bucketIndex);
 						 ++mergeIter)
 					if ((isIn = (*mergeIter)->merge(*reducedTuple)))
-						(*mergeIter)->mergePtrs(*reducedTuple);
+						(*mergeIter)->mergePtrs(*reducedTuple,  true); //(*mergeIter)->isNewProjectionOk(further));
 
 				if(!isIn)
 				{
-					merged.insert(reducedTuple);
-					prev.push_back(reducedTuple);
+					//if (reducedTuple->isNewProjectionOk(further))
+					{
+						merged.insert(reducedTuple);
+						prev.push_back(reducedTuple);
+					}
+					/*else
+						delete reducedTuple;*/
 				}
 				else
 					delete reducedTuple;	//FIXED: MEMLEAK!
@@ -716,6 +772,8 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			for (ITuple &tuple : childTuples)
 			{
 
+				if (static_cast<IDynAspTuple *>(&tuple)->isClone())
+						continue;
 
 				//assert(!further ^ (static_cast<CertificateDynAspTuple&>(tuple).isPseudo()  || static_cast<CertificateDynAspTuple&>(tuple).evolution_.size()));
 
@@ -743,7 +801,7 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 					 !isIn && mergeIter != merged.end(bucketIndex);
 					 ++mergeIter)
 				if ((isIn = (*mergeIter)->merge(*reducedTuple)))
-					(*mergeIter)->mergePtrs(*reducedTuple);
+					(*mergeIter)->mergePtrs(*reducedTuple, true);
 
 			if(!isIn) merged.insert(reducedTuple);
 			else
@@ -813,7 +871,7 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 							if ((isIn = (*mergeIter)->merge(*tmp)))
 							{
 #ifdef MORE_WORK_JOIN
-								(*mergeIter)->mergePtrs(*tmp);
+								(*mergeIter)->mergePtrs(*tmp, false);
 #else
 								(*mergeIter)->joinPtrs((*joinIter), tuple, false);
 #endif
@@ -899,25 +957,28 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			//assert(!further || (childCount == 0 || static_cast<CertificateDynAspTuple*>(tuple)->evolution_.size()));
 
 			//sharp::TupleSet intermediateOutputTuples;
-			if (further)
+			assert (further || !tuple->isClone()); // && (static_cast<CertificateDynAspTuple *>(tuple)->isPseudo() || tuple->solutionCount() > 0))
+			if (!tuple->isClone()) // && (static_cast<CertificateDynAspTuple *>(tuple)->isPseudo() || tuple->solutionCount() > 0))
 			{
-				//#ifdef SECOND_PASS_COMPRESSED
-				if (dynasp::create::isCompr())
-				//assert(false);
-				tuple->introduceFurtherCompressed(info, /*tupleIntroDone,*/ certTuplesComputed, outputTuples, maxsize);
-				else //#else
-				//assert(false);
-				tuple->introduceFurther(info, outputTuples);
-				//#endif
+				if (further)
+				{
+					//#ifdef SECOND_PASS_COMPRESSED
+					if (dynasp::create::isCompr())
+					//assert(false);
+						tuple->introduceFurtherCompressed(info, /*tupleIntroDone,*/ certTuplesComputed, outputTuples, maxsize);
+					else //#else
+					//assert(false);
+						tuple->introduceFurther(info, outputTuples);
+					//#endif
+				}
+				else
+					tuple->introduce(info, certTuplesComputed, outputTuples);
+				//TODO: FIXME, schircher shice, why copy?? CONST SCHMONST KA** CORRECTNESS
+				//tuple->insertPtrs(intermediateOutputTuples);
+	/*#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
+					if (!static_cast<CertificateDynAspTuple*>(tuple)->evolution_.size())
+				#endif*/
 			}
-			else
-				tuple->introduce(info, certTuplesComputed, outputTuples);
-			//TODO: FIXME, schircher shice, why copy?? CONST SCHMONST KA** CORRECTNESS
-			//tuple->insertPtrs(intermediateOutputTuples);
-/*#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
-				if (!static_cast<CertificateDynAspTuple*>(tuple)->evolution_.size())
-			#endif*/
-
 			delete tuple;
 		}
 
@@ -932,10 +993,12 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 		#ifndef SINGLE_LAYER_
 		//TODO: JOIN NODES?
 		//if (childCount <= 1)			//JOIN nodes do not need reversepointers
+
+		if (!create::isSatOnly())
 			for(ITuple& tuple : outputTuples)
 			{
 				IDynAspTuple &dtuple = static_cast<IDynAspTuple &>(tuple);
-				dtuple.postEvaluate();
+				dtuple.postEvaluate(further);
 
 			}
 		#endif
@@ -948,6 +1011,7 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 		/*#ifdef THREE_PASSES
 		//if (further)
 		#endif*/
+		if (!create::isSatOnly())
 		{
 		for(size_t childIndex = 0; childIndex < childCount; ++childIndex)
 		{
@@ -958,7 +1022,7 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 			{
 				//if (!further)		//first pass
 				{
-					if (static_cast<IDynAspTuple *>(childTuples[pos])->cleanUp(child, decomposition, tuples, dynasp::create::passes() >= 3 ? further : true
+					if (static_cast<IDynAspTuple *>(childTuples[pos])->cleanUp(child, decomposition, tuples,  dynasp::create::passes() >= 3 && !dynasp::create::isProjection() ?  (further & (dynasp::create::passes() < 4)) : true //!create::isSatOnly()
 /*#ifdef THREE_PASSES
 															   further
 #else
@@ -978,7 +1042,7 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 		//std::cout << "CLEANUP_FIN" << std::endl;
 		/*return;*/
 
-		if (create::get() == create::INCIDENCEPRIMAL_RULESETTUPLE && node == decomposition.root())		//cleanup after every pass
+		if (((dynasp::create::isProjection()) || (create::get() == create::INCIDENCEPRIMAL_RULESETTUPLE)) && node == decomposition.root())		//cleanup after every pass
 			for (size_t pos = 0; pos < outputTuples.size(); ++pos)
 				/*if (further)
 				{
@@ -988,7 +1052,7 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 						--pos;
 					}
 				}
-				else*/ if (static_cast<IDynAspTuple *>(outputTuples[pos])->cleanUpRoot(node, info, decomposition, tuples, dynasp::create::passes() >= 3 ? further : true
+				else*/ if (static_cast<IDynAspTuple *>(outputTuples[pos])->cleanUpRoot(node, info, decomposition, tuples, dynasp::create::passes() >= 3 && !dynasp::create::isProjection() ? (further & (dynasp::create::passes() < 4)) : true //!create::isSatOnly()
 /*#ifdef THREE_PASSES
 															   further
 #else
@@ -1014,17 +1078,28 @@ std::cout << "Hash(" <<   ((size_t(((CertificateDynAspTuple&)tuple).reductAtoms_
 	//#endif
 		{
 			info.instance->setNodeData(node, std::move(infoinst));
+			//std::cout << "setNode " << node << std::endl;
 			/*IGroundAspInstance::NodeData (info.int_introducedAtoms, info.int_rememberedAtoms, std::move(info.introducedAtoms), std::move(info.rememberedAtoms), std::move(atomAtPosition))
 		);*/
 		}
 
 		DBG(std::endl);
-		DBG("resulting tuples: "); DBG(node); DBG(" with "); DBG(prev.size()); DBG(" ");
+		DBG("resulting tuples: "); DBG(node); DBG("("); DBG(childCount); DBG(") "); DBG(" with "); DBG(prev.size()); DBG(" ");
+	#ifdef DEBUG
+		for (size_t i = 0; i < childCount; ++i)
+		{
+			DBG("["); DBG(decomposition.childAtPosition(node, i)); DBG("]"); DBG(",");
+		}
+	#endif
 		DBG(outputTuples.size()); DBG(std::endl);
 		#ifdef DEBUG
 			for (const auto& o: outputTuples)
 			{
-				DBG(&o); DBG(",");  DBG(static_cast<const CertificateDynAspTuple&>(o).solutions_); DBG("@:"); DBG(static_cast<const CertificateDynAspTuple&>(o).weight_); DBG(","); DBG_COLL(static_cast<const CertificateDynAspTuple&>(o).atoms_);  DBG(","); DBG_COLL(static_cast<const CertificateDynAspTuple&>(o).reductAtoms_); static_cast<const CertificateDynAspTuple&>(o).debug(); DBG(","); DBG(static_cast<const CertificateDynAspTuple&>(o).isPseudo());   DBG(std::endl);
+				DBG(&o); DBG(",");  DBG(static_cast<const CertificateDynAspTuple&>(o).solutions_); DBG("@:"); DBG(static_cast<const CertificateDynAspTuple&>(o).weight_); DBG(","); DBG_COLL(static_cast<const CertificateDynAspTuple&>(o).atoms_);  DBG(","); DBG_COLL(static_cast<const CertificateDynAspTuple&>(o).reductAtoms_); static_cast<const CertificateDynAspTuple&>(o).debug(); DBG(","); DBG(static_cast<const CertificateDynAspTuple&>(o).isPseudo()); DBG(", orig_size: "); DBG(static_cast<const CertificateDynAspTuple&>(o).origins_.size()); DBG(" supp: "); 
+			#ifdef SUPPORTED_CHECK	
+				DBG(static_cast<const CertificateDynAspTuple&>(o).supp_);   
+			#endif	
+				DBG(std::endl);
 				
 			}
 		#endif

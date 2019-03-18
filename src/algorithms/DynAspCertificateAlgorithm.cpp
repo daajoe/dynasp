@@ -17,7 +17,14 @@
 #include <algorithm>
 #include <climits>
 #include <vector>
-#include <cassert>
+
+//FIXME: use config.h info here, build check into autoconf
+#include <sys/times.h>
+
+#ifdef HAVE_UNISTD_H //FIXME: what if not def'd?
+	#include <unistd.h>
+#endif
+
 
 namespace dynasp
 {
@@ -42,13 +49,18 @@ namespace dynasp
 
 #ifdef DEBUG_INFO
 	static unsigned long join = 0, leaf = 0, exchange = 0, splitup = 0, reuse = 0, first = 0;
+	static clock_t leafs = 0, exchs = 0, joins = 0;
+	extern clock_t jointime;
 #endif
 
 
 	DynAspCertificateAlgorithm::DynAspCertificateAlgorithm() { } //: impl(nullptr) { }
 
-	DynAspCertificateAlgorithm::~DynAspCertificateAlgorithm()
+	DynAspCertificateAlgorithm::~DynAspCertificateAlgorithm() {}
+	
+	void DynAspCertificateAlgorithm::onExit() const
 	{
+		std::cout << "exit" << std::endl;
 	#ifdef DEBUG_INFO
 		std::cout << "LEAF: " << leaf << std::endl;
 		std::cout << "EXCHANGE: " << exchange << std::endl;
@@ -57,6 +69,7 @@ namespace dynasp
 		std::cout << "FIRSTS: " << first << std::endl;
 		std::cout << "REUSES: " << reuse << std::endl;
 		std::cout << "SPLITUPS: " << splitup << std::endl;
+		std::cout << "LEAFWALL: " << leafs << ", EXCHWALL: " << exchs << ", JOINWALL: " << joins << ", JOINTIME: " << jointime << std::endl;
 	#endif
 		//if(impl) delete impl;
 	}
@@ -73,7 +86,7 @@ namespace dynasp
 
 
 #ifdef USE_OPTIMIZED_EXTENSION_POINTERS
-	CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers& origin, const TreeNodeInfo& info)
+	CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers& origin, const TreeNodeInfo& info) const
 	{
 		//std::cout << "INSERT_COMPRESS " << &tupleType << " @ " << tupleType.size() << std::endl;
 		DBG("INSERT_COMPRESS"); DBG("\n");
@@ -82,11 +95,16 @@ namespace dynasp
 		{
 			//for (const auto& v : t)
 			{
-				DBG(" "); DBG(v.cert); DBG_COLL(v.cert->atoms_); DBG(" "); DBG_COLL(v.cert->reductAtoms_); DBG(" "); DBG(v.strict); DBG(" "); DBG(v.cert->solutions_); DBG(std::endl);
+				DBG(" "); DBG(v.cert); DBG_COLL(v.cert->atoms_); DBG(" "); DBG_COLL(v.cert->reductAtoms_); DBG(" "); DBG(v.strict); DBG(" "); DBG(v.cert->solutions_); DBG(" selfloop: "); DBG(v.cert == me.getClone()); DBG(std::endl); 
 			}
 			DBG(std::endl);
 		}
-		if (me.certificate_pointer_set_ != nullptr) //tupleTypes.size() > 0)	//me is still empty
+		if 
+		#ifdef USE_N_PASSES
+			(me.certsdone_ > further) 
+		#else
+			(me.certificate_pointer_set_ != nullptr) //tupleTypes.size() > 0)	//me is still empty
+		#endif
 		{
 			CertificateDynAspTuple* found = nullptr;
 			DBG("SEARCHING "); DBG(tupleTypes.size()); DBG("\n");
@@ -179,8 +197,10 @@ namespace dynasp
 				//up->origins_.insert(up->origins_.end(), {newTuple});
 				//up->origins_.insert(up->origins_.end(), CertificateDynAspTuple::ExtensionPointer({newTuple}));
 				CertificateDynAspTuple* newTuple = me.clone(tupleType, *origin);
-				for (auto* up : me.evolution_)
+				for (auto* up : me.getClone()->evolution_)
 				{
+					if (dynasp::create::passes() >= 4 && (unsigned char)up->isPseudo() != further)
+						continue;
 					//CertificateDynAspTuple::ExtensionPointers p({{newTuple}});
 					//p.push_back(newTuple);
 
@@ -266,6 +286,9 @@ namespace dynasp
 #endif
 			DBG("SIMPLE/FIRST OF TUPLE"); DBG("\n");
 			me.certificate_pointer_set_ = &tupleType;
+		#ifdef USE_N_PASSES
+			me.certsdone_ = further + 1;
+		#endif
 			assert(me.certificate_pointer_set_ != nullptr);
 		#ifdef VEC_CERTS_TYPE
 			tupleTypes.push_back(&me);
@@ -280,7 +303,7 @@ namespace dynasp
 #endif
 
 
-CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild)
+CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes& tupleTypes, TupleType& tupleType, CertificateDynAspTuple& me, CertificateDynAspTuple::ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild) const
 	{
 		//std::cout << "INSERT_COMPRESS " << &tupleType << " @ " << tupleType.size() << std::endl;
 		DBG("INSERT_COMPRESS"); DBG("\n");
@@ -290,12 +313,17 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 		{
 			//for (const auto& v : t)
 			{
-				DBG(" "); DBG(v.cert); DBG_COLL(v.cert->atoms_); DBG(" "); DBG_COLL(v.cert->reductAtoms_); DBG(" "); DBG(v.cert->isPseudo()); DBG(" "); DBG(v.strict); DBG(" "); DBG(v.cert->solutions_); DBG(std::endl);
+				DBG(" "); DBG(v.cert); DBG_COLL(v.cert->atoms_); DBG(" "); DBG_COLL(v.cert->reductAtoms_); DBG(" "); DBG(v.cert->isPseudo()); DBG(" "); DBG(v.strict); DBG(" "); DBG(v.cert->solutions_);  DBG(" selfloop: "); DBG(v.cert == me.getClone()); DBG(std::endl);  
 			}
 			DBG(std::endl);
 		}
 	#endif
-		if (me.certificate_pointer_set_ != nullptr) //tupleTypes.size() > 0)	//me is still empty
+		if 
+		#ifdef USE_N_PASSES
+			(me.certsdone_ > further)
+		#else
+			(me.certificate_pointer_set_ != nullptr) //tupleTypes.size() > 0)	//me is still empty
+		#endif
 		{
 			CertificateDynAspTuple* found = nullptr;
 			DBG("SEARCHING "); DBG(tupleTypes.size()); DBG("\n");
@@ -346,13 +374,13 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					//removeExtensionPointer(count, weight);
 					//keep * in mind for join nodes
 					//TODO: move semantics!
-					DBG("BEFORE REORG "); DBG(found->solutions_); DBG(" @ "); DBG(found->weight_); DBG(std::endl);
-					DBG("BEFORE REORG "); DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
+					DBG("BEFORE REORG "); DBG(found->atoms_); DBG(" "); DBG(found->reductAtoms_); DBG(" "); DBG(found->solutions_); DBG(" @ "); DBG(found->weight_); DBG(std::endl);
+					DBG("BEFORE REORG "); DBG(found->atoms_); DBG(" "); DBG(found->reductAtoms_); DBG(" "); DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
 
 					found->mergeData(&me, origin, info, firstChild);		//* vs min.
 
-					DBG("AFTER REORG "); DBG(found->solutions_); DBG(" @ "); DBG(found->weight_); DBG(std::endl);
-					DBG("AFTER REORG "); DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
+					DBG("AFTER REORG "); DBG(found->atoms_); DBG(" "); DBG(found->reductAtoms_); DBG(" "); DBG(found->solutions_); DBG(" @ "); DBG(found->weight_); DBG(std::endl);
+					DBG("AFTER REORG "); DBG(found->atoms_); DBG(" "); DBG(found->reductAtoms_); DBG(" "); DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
 
 				#ifdef EXTENSION_POINTERS_SET_TYPE
 					found->origins_.insert(*origin);
@@ -400,8 +428,8 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				//TODO: FIXME, why not working?
 				//up->origins_.insert(up->origins_.end(), {newTuple});
 				//up->origins_.insert(up->origins_.end(), CertificateDynAspTuple::ExtensionPointer({newTuple}));
-				CertificateDynAspTuple* newTuple = me.clone(tupleType, *origin);
-				for (auto* up : me.evolution_)
+				CertificateDynAspTuple* newTuple = me.clone(&tupleType, *origin);
+				for (auto* up : me.getClone()->evolution_)
 				{
 					//CertificateDynAspTuple::ExtensionPointers p({{newTuple}});
 					//p.push_back(newTuple);
@@ -464,14 +492,14 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				#endif
 					//up->origins_.emplace_back({{newTuple}});
 				}
-				DBG("BEFORE NEW REORG "); DBG(newTuple->solutions_); DBG(" @ "); DBG(newTuple->weight_); DBG(std::endl);
-				DBG("BEFORE NEW REORG "); DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
+				DBG("BEFORE NEW REORG "); DBG(newTuple->atoms_); DBG(" "); DBG(newTuple->reductAtoms_); DBG(" ");  DBG(newTuple->solutions_); DBG(" @ "); DBG(newTuple->weight_); DBG(std::endl);
+				DBG("BEFORE NEW REORG "); DBG(me.atoms_); DBG(" "); DBG(me.reductAtoms_); DBG(" ");  DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
 
 				//Done: manage counter, weights
 				newTuple->mergeData(&me, origin, info, firstChild, true);		//* vs min.
 			
-				DBG("AFTER NEW REORG "); DBG(newTuple->solutions_); DBG(" @ "); DBG(newTuple->weight_); DBG(std::endl);
-				DBG("AFTER NEW REORG "); DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
+				DBG("AFTER NEW REORG "); DBG(newTuple->atoms_); DBG(" "); DBG(newTuple->reductAtoms_); DBG(" ");  DBG(newTuple->solutions_); DBG(" @ "); DBG(newTuple->weight_); DBG(std::endl);
+				DBG("AFTER NEW REORG "); DBG(me.atoms_); DBG(" "); DBG(me.reductAtoms_); DBG(" ");  DBG(me.solutions_); DBG(" @ "); DBG(me.weight_); DBG(std::endl);
 
 
 				/*std::cout << "\tPRECANDIDATE (";
@@ -505,6 +533,9 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 #endif
 			DBG("SIMPLE/FIRST OF TUPLE"); DBG("\n");
 			me.certificate_pointer_set_ = &tupleType;
+			#ifdef USE_N_PASSES
+				me.certsdone_ = further + 1;
+			#endif
 			assert(me.certificate_pointer_set_ != nullptr);
 		#ifdef VEC_CERTS_TYPE
 			tupleTypes.push_back(&me);
@@ -518,6 +549,12 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 		return nullptr; 	//no new tuple has to be added
 	}
 
+	/*bool DynAspCertificateAlgorithm::cmp(const DynAspCertificatePointer &a, const DynAspCertificatePointer &b) const
+	{ 
+		return a.cert->isPseudo() == b.cert->isPseudo(); 
+	}*/
+
+
 	//TODO: add to outputTuples
 	void DynAspCertificateAlgorithm::evaluateNode(
 			vertex_t node,
@@ -530,6 +567,17 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 			const IInstance &instance,
 			ITupleSet &outputTuples) const
 	{
+		//std::cout << "TD: " << &decomposition << std::endl;
+	/*#ifdef DEBUG_INFO
+		std::cout << "LEAF: " << leaf << std::endl;
+		std::cout << "EXCHANGE: " << exchange << std::endl;
+		std::cout << "JOIN: " << join << std::endl;
+		std::cout << std::endl;
+		std::cout << "FIRSTS: " << first << std::endl;
+		std::cout << "REUSES: " << reuse << std::endl;
+		std::cout << "SPLITUPS: " << splitup << std::endl;
+	#endif*/
+
 		//std::cout << ("evaluteNode 2nd") << std::endl;
 		//return;
 		//const bool SUBSET = true;
@@ -692,23 +740,55 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 
 #ifdef CLEANUP_SOLUTIONS
 //#ifdef SEVERAL_PASSES
-		if (node != decomposition.root())
+		/*for (size_t pos = 0; pos < sz; ++ pos)
+			{
+				ITuple &tuple = *meTuples[pos];
+
+				DBG("TEST TUPLE ("); DBG(&tuple); DBG(", pseudo ");
+				CertificateDynAspTuple &me = static_cast<CertificateDynAspTuple &>(tuple);
+				DBG(me.isPseudo()); DBG(")"); DBG(std::endl);
+			}*/
+		if (false && node != decomposition.root())
 			for (size_t pos = 0; pos < outputTuples.size(); ++pos)
 				if (static_cast<CertificateDynAspTuple *>(outputTuples[pos])->evolution_.size() == 0)
 				{
+					DBG("FREETEST DELETE ("); DBG(outputTuples[pos]); DBG(std::endl);
 					delete outputTuples[pos];
 					outputTuples.erase(pos);
 					--pos;
 				}
+
+		sz = meTuples.size();
+		/*for (size_t pos = 0; pos < sz; ++ pos)
+			{
+				ITuple &tuple = *meTuples[pos];
+
+				DBG("TEST TUPLE AFTER ("); DBG(&tuple); DBG(", pseudo ");
+				CertificateDynAspTuple &me = static_cast<CertificateDynAspTuple &>(tuple);
+				DBG(me.isPseudo()); DBG(")"); DBG(std::endl);
+			}
+		DBG("TEST TUPLE FINISHED"); DBG(std::endl);*/
 //#endif
 #endif
 
 		// for each child, project and join tuples
-		if(childCount == 0)			//leaf
+		assert(!eval_ || eval_->isLinkedLeaf(node) || !eval_->isLeaf(node));
+	/*std::cout << "me: " << node << std::endl;
+	for (unsigned int child = 0; child < decomposition.childCount(node); ++child) //td.childCount(v) - 1; child > 0; --child)
+		std::cout << "chld: " << decomposition.childAtPosition(node, child);
+	std::cout << std::endl;*/
+
+	if (!eval_ || eval_->isLinkedLeaf(node)) 
+	{
+		//std::cout << "meLinked: " << node << std::endl;
+		if (childCount == 0 || (eval_ && eval_->isLeaf(node)))			//leaf
 		{
 #ifdef DEBUG_INFO
 			++leaf;
+			struct tms cpu;
+			clock_t wall = times(&cpu);
 #endif
+			//std::cout << "meLeaf: " << node << std::endl;
 
 			//std::cout << "LEAF" << std::endl;
 			DBG("LEAF"); DBG("\n");
@@ -719,7 +799,15 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				CertificateDynAspTuple &childTuple = static_cast<CertificateDynAspTuple &>(tuple);
 				if (childTuple.isPseudo() || childTuple.solutionCount() == 0)
 					continue;
-				childTuple.certificate_pointer_set_ = new CertificateDynAspTuple::Certificate_pointer_set();
+				//not hit twice!
+				#ifdef USE_N_PASSES
+					assert(childTuple.certificate_pointer_set_ == nullptr || childTuple.certsdone_ == further);
+				#else
+					assert(childTuple.certificate_pointer_set_ == nullptr);
+				#endif
+				
+				if (childTuple.certificate_pointer_set_ == nullptr) // <= further)
+					childTuple.certificate_pointer_set_ = new CertificateDynAspTuple::Certificate_pointer_set();
 #ifndef INT_ATOMS_TYPE
 				childTuple.prepareForBag(atoms);
 #endif
@@ -728,13 +816,25 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					const CertificateDynAspTuple &childTuple2 = static_cast<const CertificateDynAspTuple &>(tuple2);
 					//std::cout << childTuple.checkRelation(childTuple2) << std::endl;
 					CertificateDynAspTuple::ESubsetRelation  result;
-					if ((result = childTuple.checkRules(info.introducedRules, childTuple2, info)) >= CertificateDynAspTuple::ESR_EQUAL)
+					assert((unsigned char)true == 1);
+					
+					if ((dynasp::create::passes() < 4 || (unsigned char)childTuple2.isPseudo() == further) && 
+						(result = childTuple.checkRules(info.introducedRules, childTuple2, info, false)) >= CertificateDynAspTuple::ESR_EQUAL)
 					{
+
+						DynAspCertificateAlgorithm::insertIfNotSubsumed(info, childTuple.certificate_pointer_set_, &childTuple2, (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT));
 						//tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(up, (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT)));
 						//if ((result = childTuple.checkRelation(childTuple2)) >= CertificateDynAspTuple::ESR_EQUAL)
 						DBG("SUBSET "); DBG(&tuple); DBG(" "); DBG(result); DBG(" ("); DBG(&tuple2); DBG(")"); DBG("\n");
 					}
+					else
+					{
+						DBG("SUBSET fail "); DBG(&childTuple); DBG(" , "); DBG(&childTuple2); DBG(std::endl);
+					}
 				}
+			#ifdef USE_N_PASSES
+				childTuple.certsdone_ = further + 1;
+			#endif
 #ifndef INT_ATOMS_TYPE
 				childTuple.clean();
 #endif
@@ -743,15 +843,23 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					outputTuples.insert(t);*/
 				DBG("SUBSET SIZE "); DBG(childTuple.certificate_pointer_set_->size()); DBG("\n");
 			}
+		#ifdef DEBUG_INFO
+			leafs += times(&cpu) - wall;
+			//std::cout << "EXCHS: " << exchs << std::endl;
+		#endif
+
 		}
 		else if (childCount == 1)// || childCount > 1)	//exchange
 		{
 #ifdef DEBUG_INFO
 			++exchange;
+	
+			struct tms cpu;
+			clock_t wall = times(&cpu);
 #endif
 			DBG("EXCHANGE");
 			htd::vertex_t firstChild = decomposition.childAtPosition(node, 0);
-
+			//std::cout << "me: " << node <<  " first: " << firstChild << std::endl;
 			//std::cout << "EXCHANGE" << std::endl;
 
 			//std::cout << "            EXCHANGE       " << std::endl;
@@ -779,7 +887,15 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				//DBG("\n");
 				//DBG(me.isPseudo());
 
-				if (me.isPseudo() || me.solutionCount() == 0 || me.isClone() || me.certificate_pointer_set_ != nullptr)
+				//assert (!me.isClone() || me.certsdone_ <= further);
+				//assert (me.getClone() == &me || me.certsdone_ <= further);
+				//assert (me.getClone() == &me);
+				if (me.isPseudo() || me.solutionCount() == 0 /*|| me.isClone()*/ || 
+				#ifdef USE_N_PASSES
+					me.certsdone_ > further) 
+				#else
+					me.certificate_pointer_set_ != nullptr)
+				#endif
 					continue;
 				DBG("post");
 #ifndef INT_ATOMS_TYPE
@@ -794,7 +910,19 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					bool non_solution = false;
 					//std::cout << "ptrOrigins" << std::endl;
 					auto& down = *ptrOrigins;
-					TupleType *tupleType = new TupleType(); //CertificateDynAspTuple::DynAspCertificatePointer> certificate_signature;
+
+					#ifndef NOT_MERGE_PSEUDO
+						if ((*ptrOrigins)[0]->solutions_ == 0)
+						{
+							++ptrOrigins;
+							continue; //break;
+						}
+					#endif
+
+
+
+					//std::set<CertificateDynAspTuple*> elems;
+					TupleType *tupleType = me.cloneCertificates(further);
 					//std::cout << tupleType << std::endl;
 					assert(down.size() == 1);		//since we have an exchange node
 					for (const auto* downptr : down)	//
@@ -806,18 +934,25 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					#else
 						assert(downptr->certificate_pointer_set_ != nullptr);
 					#endif
-						for (const CertificateDynAspTuple::DynAspCertificatePointer &cert : *downptr->certificate_pointer_set_)
+
+						for (const CertificateDynAspTuple::DynAspCertificatePointer &cert : *downptr/*->getClone()*/->certificate_pointer_set_)
 						{
 							assert(!downptr->isPseudo());
 							DBG("cert "); DBG(cert.cert); DBG(","); DBG(cert.strict); DBG("\n");
 							for (const CertificateDynAspTuple *up : cert.cert->evolution_)
 							{
-
+							#ifdef USE_N_PASSES
+								if (dynasp::create::passes() >= 4 && (unsigned char)up->isPseudo() != further)
+									continue;
+							#endif
 //#define USE_SELF_STRICT_DETECTION
 #ifdef USE_SELF_STRICT_DETECTION
+
+								DBG("evo "); DBG(up); DBG("\n");
 								//if ((non_solution = (up == &me && cert.strict)))
-								if ((non_solution = (up == &me && cert.strict)))
+								if ((non_solution = (up == me.getClone() && cert.strict)))
 								{
+									DBG("SELF_STRICT_LOOP!"); DBG(std::endl);
 									tupleType->clear();
 								#ifdef VEC_CERT_TYPE
 									tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(up, true));
@@ -841,13 +976,14 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 								}
 #endif
 								assert(up == up->getClone());
-								DBG("evo "); DBG(up); DBG("\n");
 								CertificateDynAspTuple::ESubsetRelation result = me.checkRules(info.introducedRules, *up, info, false);
 
 								//TODO: more efficient search to eliminate duplicates
-								bool found = false;
-
-							#ifdef VEC_CERT_TYPE
+								//bool found = false;
+								
+								if (result >= CertificateDynAspTuple::ESR_EQUAL)
+									DynAspCertificateAlgorithm::insertIfNotSubsumed(info, tupleType, up, cert.strict | (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT));
+							/*#ifdef VEC_CERT_TYPE
 								for (auto &t : *tupleType)
 									if (t.cert == up)
 									{
@@ -871,7 +1007,7 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 									tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(up, strict)).first->updateStrict(strict);
 								#endif
 									DBG("SUBSET "); DBG(&tuple); DBG(","); DBG_COLL(static_cast<CertificateDynAspTuple&>(tuple).atoms_); DBG(","); DBG_COLL(static_cast<CertificateDynAspTuple&>(tuple).reductAtoms_); DBG(" "); DBG(result); DBG(" "); DBG(cert.strict); DBG(" ("); DBG(up); DBG(")");
-								}
+								}*/
 							}
 							if (non_solution)
 								break;
@@ -885,7 +1021,7 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					}
 					//if (!non_solution)
 					{
-						CertificateDynAspTuple *t = DynAspCertificateAlgorithm::insertCompressed(tupleTypes, *tupleType,
+						CertificateDynAspTuple *t = insertCompressed(tupleTypes, *tupleType,
 																								 me, ptrOrigins, info, firstChild);
 						tupleType = nullptr;
 						if (t)
@@ -896,6 +1032,10 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				me.clean();
 #endif
 			}
+		#ifdef DEBUG_INFO
+			exchs += times(&cpu) - wall;
+			//std::cout << "EXCHS: " << exchs << std::endl;
+		#endif
 		}
 		else
 #ifdef USE_LAME_JOIN
@@ -949,7 +1089,13 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				DBG(me.isPseudo()); DBG(")"); DBG(std::endl);
 				DBG("isClone ("); DBG(me.isClone()); DBG("), "); DBG(me.certificate_pointer_set_); DBG("\n");
 				//TODO: REMOVE me.isClone(), since it is subsumed by me.certificate_pointer_set != nullptr!
-				if (me.isPseudo() || me.solutionCount() == 0 || me.isClone() || me.certificate_pointer_set_ != nullptr)
+				if (me.isPseudo() || me.solutionCount() == 0 /*|| me.isClone()*/ || 
+				
+				#ifdef USE_N_PASSES
+					me.certsdone_ > further)
+				#else
+					me.certificate_pointer_set_ != nullptr)
+				#endif
 					continue;
 #ifndef INT_ATOMS_TYPE
 				me.prepareForBag(atoms);
@@ -1005,12 +1151,23 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					//std::cout << (*ptrOrigins)[0] << "," << (*ptrOrigins)[1] << std::endl;
 					//std::cout << ptrOrigins->size() << " vs " << childCount << std::endl;
 					assert(ptrOrigins->size() == childCount);
-					TupleType *tupleType = new TupleType();
+
+					TupleType *tupleType = me.cloneCertificates(further);
 					//EPT (a',b',c',...)
 					for (const ITuple &tupleCand : meTuples)		//make quadratic stuff
 					{
 						const CertificateDynAspTuple &meCand = static_cast<const CertificateDynAspTuple &>(tupleCand);
+
+						#ifdef DEBUG
+							
+						#endif
+
+					#ifdef USE_N_PASSES
+						if (dynasp::create::passes() >= 4 && (unsigned char)meCand.isPseudo() != further)
+							continue;
+					#endif
 						const CertificateDynAspTuple &meCandClone = *meCand.getClone();
+						DBG(" MECAND "); DBG(&meCandClone); DBG(" "); DBG(meCand.atoms_); DBG(","); DBG(meCand.reductAtoms_); DBG(" P: "); DBG(meCandClone.isPseudo()); DBG(" = "); DBG(meCand.isPseudo()); DBG(std::endl);
 						//const CertificateDynAspTuple &meCandOrig = static_cast<const CertificateDynAspTuple &>(tupleCand).isClone() != nullptr ?
 						//							 *static_cast<const CertificateDynAspTuple &>(tupleCand).isClone() : static_cast<const CertificateDynAspTuple &>(tupleCand);
 						//TODO: meCand.isClone() subsumed by meCand.certificate_pointer_set_ != nullptr
@@ -1054,6 +1211,9 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 									assert((*ptrOrigins)[childIndex]->certificate_pointer_set_ != nullptr);
 								#endif
 
+									DBG(" CERT SET "); DBG( (*ptrOrigins)[childIndex]->certificate_pointer_set_); DBG(" "); DBG(childIndex);
+									DBG(std::endl);
+
 								#ifdef VEC_CERT_TYPE
 
 									//std::cout << "checking subset stuff " << (*ptrOrigins)[childIndex]->certificate_pointer_set_->size() << std::endl;
@@ -1074,12 +1234,29 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 										strictTotal |= fpos->strict;
 										//pseu |= fpos->cert->isPseudo();
 										found = true;
+										
+										DBG(" CERT "); DBG(fpos->cert); DBG(" / "); DBG(fpos->strict); DBG(","); DBG(fpos->cert->isPseudo()); DBG("("); DBG(fpos->cert->atoms_); DBG(","); DBG(fpos->cert->reductAtoms_); DBG(") ~> ("); DBG(info.transform(fpos->cert->atoms_, decomposition.childAtPosition(node,  childIndex))); DBG(","); DBG(info.transform(fpos->cert->reductAtoms_, decomposition.childAtPosition(node,  childIndex))); DBG(")"); DBG(std::endl);
+
+
+										DBG(std::endl);
+
 									}
 									//TODO
 								#endif
 									//std::cout << found << std::endl;
 									if (!found)
+									{
+										DBG(" NOT FOUND "); DBG((*candOrigins)[childIndex]->getClone()); DBG(" "); DBG((*candOrigins)[childIndex]->getClone()->atoms_); DBG(","); DBG((*candOrigins)[childIndex]->getClone()->reductAtoms_); DBG(std::endl);
+										DBG(" BAGS: "); DBG(decomposition.bagContent(node)); DBG(","); DBG(decomposition.bagContent(decomposition.childAtPosition(node, 0))); DBG(","); DBG(decomposition.bagContent(decomposition.childAtPosition(node,1))); DBG(std::endl);
+										#ifdef DEBUG
+										for (const auto& tp : *((*ptrOrigins)[childIndex]->certificate_pointer_set_))
+										{
+											DBG(tp.cert); DBG(" ("); DBG(tp.cert->atoms_); DBG(","); DBG(tp.cert->reductAtoms_); DBG("@"); DBG(tp.cert->isPseudo()); DBG(std::endl);
+										}
+										#endif
+										DBG(std::endl);
 										break;
+									}
 
 								}
 								//DBG("FOUND "); DBG(found); DBG(std::endl);
@@ -1122,9 +1299,7 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 																									   strictTotal |
 																									   (result ==
 																										CertificateDynAspTuple::ESR_INCLUDED_STRICT)));
-
 									#else
-
 										tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(&meCandClone,
 																									   strictTotal)).first->updateStrict(strictTotal);
 										inserted = true;
@@ -1137,7 +1312,7 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 						}
 					}
 					DBG("postdown"); DBG("\n");
-					CertificateDynAspTuple* t = DynAspCertificateAlgorithm::insertCompressed(tupleTypes, *tupleType, me, ptrOrigins, info);
+					CertificateDynAspTuple* t = insertCompressed(tupleTypes, *tupleType, me, ptrOrigins, info);
 					tupleType = nullptr;
 					if (t)
 						outputTuples.insert(t);
@@ -1299,9 +1474,56 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 	{
 #ifdef DEBUG_INFO
 			++join;
+			
+			struct tms cpu;
+			clock_t wall = times(&cpu);
 #endif
+
+		//#define CACHE_CERTS
+
 			DBG("JOIN"); DBG("\n");
-			for (size_t pos = 0; pos < sz/*meTuples.size()*/; ++ pos)
+			/*for (size_t pos = 0; pos < sz; ++ pos)
+			{
+				ITuple &tuple = *meTuples[pos];
+
+				DBG("TEST JOIN TUPLE ("); DBG(&tuple); DBG(", pseudo ");
+				CertificateDynAspTuple &me = static_cast<CertificateDynAspTuple &>(tuple);
+				DBG(me.isPseudo()); DBG(")"); DBG(std::endl);
+			}*/
+			
+			struct ConsenseType 
+				{ 
+					bool strict; bool p; 
+				#ifdef CHECK_CONSENSE
+					CertificateDynAspTuple::IConsenseData* data;
+				#endif
+				#ifndef CACHE_CERTS
+					unsigned int lastTouchedBy; 
+				#endif
+					ConsenseType() : strict(false),  p(false)
+				#ifdef CHECK_CONSENSE	
+					, data(nullptr)
+				#endif	
+				#ifndef CACHE_CERTS
+					, lastTouchedBy(1)
+				#endif
+					{ }
+					void clear() { delete data; data = nullptr; } 
+					virtual ~ConsenseType() { delete data; }
+					void update(bool s, bool ps) { strict |= s; p |= ps; }
+				};
+
+
+		#ifdef CACHE_CERTS
+			typedef std::map<CertificateDynAspTuple *, ConsenseType > CollectedCertificates;
+			using CertificateCache = std::unordered_map<CertificateDynAspTuple*, CollectedCertificates*>;
+			CertificateCache ccache;
+			//CollectedCertificates** certAtPos = nullptr; //[ptrOrigins->end() - ptrOrigins->begin()];
+		#else
+			typedef std::unordered_map<CertificateDynAspTuple *, ConsenseType, std::hash<CertificateDynAspTuple*> > CollectedCertificates;
+		#endif
+
+			for (size_t pos = 0; pos < sz/*meTuples.size()*/; ++pos)
 			{
 				ITuple &tuple = *meTuples[pos];
 
@@ -1310,7 +1532,12 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				DBG(me.isPseudo()); DBG(")"); DBG(std::endl);
 				DBG("isClone ("); DBG(me.isClone()); DBG("), "); DBG(me.certificate_pointer_set_); DBG("\n");
 				//TODO: REMOVE me.isClone(), since it is subsumed by me.certificate_pointer_set != nullptr!
-				if (me.isPseudo() || me.solutionCount() == 0 || me.isClone() || me.certificate_pointer_set_ != nullptr)
+				if (me.isPseudo() || me.solutionCount() == 0 /*|| me.isClone()*/ || 	
+				#ifdef USE_N_PASSES
+					me.certsdone_ > further)
+				#else
+					me.certificate_pointer_set_ != nullptr)
+				#endif
 					continue;
 #ifndef INT_ATOMS_TYPE
 				me.prepareForBag(atoms);
@@ -1318,8 +1545,28 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 				TupleTypes tupleTypes; //CertificateDynAspTuple::DynAspCertificatePointer> certificate_signature;
 				//me.postEvaluate();
 				//size_t pos = 0, sz = me.origins_.size();
+
+				//std::cout << "NEW JOIN TUPLE XXYZSDF " << std::endl;
+		
 				for (auto ptrOrigins = me.origins_.begin(); ptrOrigins != me.origins_.end();)// && pos < sz; ++pos)
 				{
+					
+				#ifndef NOT_MERGE_PSEUDO
+					bool found = false;
+					for (const auto* ptr : *ptrOrigins)
+						if (ptr->solutions_ == 0)
+						{
+							found = true;
+							break;
+						}
+					if (found)
+					{
+						++ptrOrigins;
+						continue;
+					}
+				#endif
+
+
 					DBG("\tCANDIDATE (");
 					for (auto candO = ptrOrigins->begin(); candO != ptrOrigins->end(); ++candO)
 					{
@@ -1329,27 +1576,67 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					//std::cout << (*ptrOrigins)[0] << "," << (*ptrOrigins)[1] << std::endl;
 					//std::cout << ptrOrigins->size() << " vs " << childCount << std::endl;
 					assert(ptrOrigins->size() == childCount);
-					struct ConsenseType { bool strict; unsigned int lastTouchedBy; bool p; 
-									#ifdef CHECK_CONSENSE
-										CertificateDynAspTuple::IConsenseData* data;
-									#endif
-											ConsenseType() : strict(false), lastTouchedBy(1), p(false)
-										#ifdef CHECK_CONSENSE	
-											, data(nullptr)
-										#endif	
-											{ }
-											void update(bool s, bool ps) { strict |= s; p |= ps; }
-										};
 					//typedef std::unordered_map<CertificateDynAspTuple *, ConsenseType, IDynAspTuple::merge_hash, IDynAspTuple::ComputedCertificateTuplesEqual> CollectedCertificates;
-					typedef std::unordered_map<CertificateDynAspTuple *, ConsenseType, std::hash<CertificateDynAspTuple*> > CollectedCertificates;
+
+				#ifdef CACHE_CERTS
+					/*jif (certAtPos == nullptr)
+						certAtPos = new CollectedCertificates*[ptrOrigins->end() - ptrOrigins->begin()];
+					else
+						for (int i = 0; i < ptrOrigins->end() - ptrOrigins->begin(); ++i)
+							certAtPos[i] = nullptr;*/
+					CollectedCertificates* cert = nullptr, *certAtPos = nullptr; //[ptrOrigins->end() - ptrOrigins->begin()];
+				#else
 					CollectedCertificates certs;
-					//certs.reserve(outputTuples.size());
+				#endif
+									//certs.reserve(outputTuples.size());
 					unsigned int ppos = 0;
 
-					TupleType *tupleType = new TupleType();
+					TupleType *tupleType = me.cloneCertificates(further);
+					//TupleType *tupleType = new TupleType();
 					bool non_solution = false;
-					for (auto ptr = ptrOrigins->begin(); ptr != ptrOrigins->end(); ++ptr)
+					for (auto ptr = ptrOrigins->begin(); ptr != ptrOrigins->end(); ++ptr, ++ppos)
 					{
+						//if (ptr != ptrOrigins->begin())
+						//	++ppos;
+						//std::cout << "," << std::endl;
+						//std::cout << "DEBUT " << *ptr << std::endl;
+					#ifdef CACHE_CERTS
+						assert(cert == nullptr);
+						auto itf = ccache.find(*ptr);
+						if (itf != ccache.end())
+						{
+							if (itf->second)
+							{
+								//std::cout << "REUSE" << std::endl;
+								if (certAtPos)
+									cert = itf->second;
+								else
+									certAtPos = itf->second;
+								continue;
+							}
+							else
+							{
+								//std::cout << "STRICT" << std::endl;
+								tupleType->clear();
+							#ifdef VEC_CERT_TYPE
+								tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(me.getClone(), true));
+							#else
+								tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(me.getClone(), true));
+							#endif
+								non_solution = true;
+								//break;
+								goto freeStuff;
+							}
+						}
+						else //if (cert == nullptr)
+						{
+							cert = new CollectedCertificates();
+							//std::cout << "NEW CERT" << std::endl;
+						}
+						/*else
+							cert->clear();*/
+					#endif
+						//DBG(" CAND "); DBG((*ptr)); DBG(std::endl);
 						/*std::cout << "before" << std::endl;
 						std::unordered_set<const IDynAspTuple*> ss, ss2;
 						for (const auto &p : *(*ptr)->certificate_pointer_set_)
@@ -1383,26 +1670,56 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 						//assert((ptr + 1) == ptrOrigins->end() || *(*ptr)->certificate_pointer_set_ == *(*(ptr + 1))->certificate_pointer_set_);
 						//std::cout << "LISTEN" << std::endl;
 						assert(!(*ptr)->isPseudo());
-						DBG("CERT SET "); DBG((*ptr)->certificate_pointer_set_); DBG(std::endl);
+						assert((*ptr)->certificate_pointer_set_);
+						//DBG("CERT SET "); DBG((*ptr)->certificate_pointer_set_); DBG(std::endl);
+					//if (!non_solution)
 						for (auto &cc : *(*ptr)->certificate_pointer_set_)
 						{
-							DBG("CERT "); DBG(cc.cert); DBG(" / "); DBG(cc.strict); DBG(","); DBG(cc.cert->isPseudo()); DBG("("); DBG(cc.cert->atoms_); DBG(","); DBG(cc.cert->reductAtoms_); DBG(")"); DBG(std::endl);
-
-
+							//std::cout  << "CERT " << cc.cert << ", " << cc.cert->evolution_.size() << std::endl;
+							//DBG("CERT "); DBG(cc.cert); DBG(" / "); DBG(cc.strict); DBG(","); DBG(cc.cert->isPseudo()); DBG("("); DBG(cc.cert->atoms_); DBG(","); DBG(cc.cert->reductAtoms_); DBG(")"); DBG(std::endl);
 							for (auto *tupleCand : cc.cert->evolution_)
 							{
-#ifdef USE_SELF_STRICT_DETECTION
-								//if ((non_solution = (up == &me && cert.strict)))
-								if ((non_solution = (tupleCand == &me && cc.strict)))
+							#ifdef USE_N_PASSES
+								if (dynasp::create::passes() >= 4 && (unsigned char)tupleCand->isPseudo() != further)
 								{
+									//assert(!further);
+									//assert(false);
+									continue;
+								}
+							#endif
+#ifdef USE_SELF_STRICT_DETECTION
+								assert(cc.cert == cc.cert->getClone());
+								assert(&me == me.getClone());
+								//if ((non_solution = (tupleCand == me.getClone() && cc.strict)))
+								if ((cc.cert == (*ptr)->getClone() || 
+									#ifdef CACHE_CERTS
+										false
+									#else
+										(non_solution = (dynasp::create::get() == dynasp::create::PRIMAL_SIMPLETUPLE && tupleCand == me.getClone()))
+									#endif
+								) && cc.strict) 
+								/*&& (true//info.int_rememberedRules == 0 
+							
+								#ifndef ENUM_SOLUTIONS
+									|| info.rule_transform(cc.cert->atoms_, decomposition.childAtPosition(node, ppos)) == (tupleCand->atoms_ & info.getRules())*/ /*info.int_rememberedRules == 0 && (non_solution = (tupleCand == me.getClone() && cc.strict))*/
+								/*#endif	
+								)
+								)*/
+								{
+									//std::cout << "STRCTS" << std::endl;
+									//DBG("NON_SOL");
+								#ifndef CACHE_CERTS
 									certs.clear();
-									//tupleType->clear();
-								#ifdef VEC_CERT_TYPE
-									tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(tupleCand, true));
-								#else
-									tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(tupleCand, true));
 								#endif
-									break;
+									tupleType->clear();
+								#ifdef VEC_CERT_TYPE
+									tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(non_solution ? tupleCand : me.getClone(), true));
+								#else
+									tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(non_solution ? tupleCand : me.getClone(), true));
+								#endif
+									non_solution = true;
+									//break;
+									goto freeStuff;
 									/*auto& ptrComponent = (*ptrOrigins->begin())->evolution_;
 									#ifdef REVERSE_EXTENSION_POINTER_SET_TYPE
 										ptrComponent->evolution_.erase(&me);
@@ -1419,7 +1736,7 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 								}
 #endif
 	
-								DBG("EVO "); DBG(tupleCand); DBG(std::endl);
+								//DBG("EVO "); DBG(tupleCand); DBG(std::endl);
 								/*DBG("\tEVO_PTRS (");
 								for (auto candO = tupleCand->origins_.begin(); candO != tupleCand->origins_.end(); ++candO)
 								{
@@ -1436,25 +1753,49 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 								//std::cout << cc.strict << "," << cc.cert << "," << cc.cert->atoms_ << "," << cc.cert->reductAtoms_ << "," << cc.cert->solutions_ << "," << cc.cert->weight_ << "@" << tupleCand << "," << tupleCand->atoms_ << "," << tupleCand->reductAtoms_ << std::endl;
 								//auto* tupleCand = cc.cert;
 								assert(tupleCand == tupleCand->getClone());
+
+							#ifdef CACHE_CERTS
+								const auto& it = cert->emplace(tupleCand, ConsenseType()).first;
+								it->second.update(cc.strict, cc.cert->isPseudo());	//licked by the first
+								#ifdef CHECK_CONSENSE
+									//std::cout << "UPDATE: " << tupleCand << ":" << cert << "," << it->second.data << std::endl;
+									//std::cout << "USING: " << decomposition.childAtPosition(node, ppos) << "," << ppos << std::endl;
+									tupleCand->updateConsense(cc, it->second.data, info, ppos, decomposition.childAtPosition(node, ppos));
+									//std::cout << "POST_UPDATE: " << cert << "," << it->second.data << std::endl;
+								#endif
+							#else
 								CollectedCertificates::iterator it;
+								
 								if (ptr == ptrOrigins->begin())
 								{
 									CertificateDynAspTuple::ESubsetRelation result = me.checkRules(info.introducedRules, *tupleCand, info, false);
-									DBG("RES: "); DBG(result); DBG(std::endl);
+									//DBG("RES: "); DBG(result); DBG(std::endl);
 								#ifndef NON_NORM_JOIN
 									assert(result >= CertificateDynAspTuple::ESR_EQUAL);
 								#endif
 
-									const auto& it = certs.emplace(tupleCand, ConsenseType()).first;
-									it->second.update(cc.strict | (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT), cc.cert->isPseudo());	//licked by the first
-								#ifdef CHECK_CONSENSE
-									tupleCand->updateConsense(cc, it->second.data, info, ppos, decomposition.childAtPosition(node, ppos));
-									if (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT)
-										tupleCand->setStrict(true, *it->second.data);
+									if (result >= CertificateDynAspTuple::ESR_EQUAL)
+									{
+										const auto& it = certs.emplace(tupleCand, ConsenseType()).first;
+
+									/*#ifdef REVERSE_EXTENSION_POINTER_SEARCH_IDX
+									#ifdef CHECK_CONSENSE
+										it->second.ups.emplace(*cc.cert->evolutionWith_.find(tupleCand), cc.strict);
+									#endif
+									#endif*/
+										//DBG("UPDT: "); DBG(cc.cert); DBG(","); DBG(cc.strict); DBG(std::endl);
+										it->second.update(cc.strict | (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT), cc.cert->isPseudo());	//licked by the first
+									#ifdef CHECK_CONSENSE
+										tupleCand->updateConsense(cc, it->second.data, info, ppos, decomposition.childAtPosition(node, ppos));
+										if (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT)
+											tupleCand->setStrict(true, *it->second.data);
+
+										//DBG("IS_STRICT_DUE_NEW_STRICT_INCLUSION: "); DBG(result == CertificateDynAspTuple::ESR_INCLUDED_STRICT); DBG(std::endl);
 
 									//(*ptr)->initConsense(it->second.data, info, decomposition.childAtPosition(node, ppos));
 									//cc.cert->updateConsense(*it->second.data);
-								#endif
+									#endif
+									}
 								}
 								else if ((it = certs.find(tupleCand)) != certs.end())
 								{
@@ -1464,8 +1805,9 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 									assert(it->second.lastTouchedBy <= ptr - ptrOrigins->begin() + 1);
 									if (it->second.lastTouchedBy >= ptr - ptrOrigins->begin())
 									{
-										it->second.strict |= cc.strict;
-										it->second.p |= cc.cert->isPseudo();
+										it->second.update(cc.strict, cc.cert->isPseudo());
+
+										//DBG("UPDT: "); DBG(cc.cert); DBG(","); DBG(cc.strict); DBG(std::endl);
 									#ifdef CHECK_CONSENSE
 										//(*ptr)->updateConsense(*it->second.data, info, 
 										tupleCand->updateConsense(cc, it->second.data, info, ppos, decomposition.childAtPosition(node, ppos));
@@ -1476,22 +1818,155 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 									else
 									{
 									#ifdef CHECK_CONSENSE
-										cc.cert->clearConsense(*it->second.data);
+										it->second.clear();
+										//cc.cert->clearConsense(*it->second.data);
 										//(*ptr)->clearConsense(*it->second.data);
 									#endif
 										certs.erase(it);
 									}
 								}
+							#endif
 							}
-							if (non_solution)
-								break;
+							/*if (non_solution)
+								break;*/
 						}
-						++ppos;
+					freeStuff:
 						if (non_solution)
+						{
+						//#define WRONG
+						#ifdef WRONG
+							removeStrictSelfLoop(&me);
+							//found->mergeData(&me, ptrOrigin, info, false);		//* vs min.
+						#endif
+						#ifdef CACHE_CERTS
+							//delete cert;
+							//cert = nullptr;
+							ccache.emplace(*ptr, nullptr);
+							//if (ptr + 1 == ptrOrigins->end())
+							{
+								delete cert;
+								cert = nullptr;
+							}
+						#endif
 							break;
+						}
+						else
+						{
+						#ifdef CACHE_CERTS
+							ccache.emplace(*ptr, cert);
+							if (certAtPos == nullptr)
+							{
+								certAtPos = cert;
+								cert = nullptr;
+							}
+						#endif
+						}
+						#ifdef CACHE_CERTS
+							assert(ppos <= 2);
+						#endif
 					}
 					if (!non_solution)
 					{
+					#ifdef CACHE_CERTS
+						assert(cert != nullptr && certAtPos != nullptr);
+						assert(cert != certAtPos);
+						tupleType->reserve(cert->size());
+						//std::cout << "ME: " << &me << "," << me.getClone() << std::endl;
+						//std::cout << cert->size() << "," << certAtPos->size() << std::endl;
+						auto it0 = certAtPos->begin(), it1 = cert->begin();
+						//for (int i = 0; i < sz; ++i)
+						for (; it0 != certAtPos->end() && it1 != cert->end(); )
+						{
+							//std::cout << it0->first << "," << it1->first << std::endl;
+							if (it0->first < it1->first)
+								++it0;
+							else 
+							{
+								if (it0->first == it1->first) // && (!it0->first->isPseudo() || it0->second.p || it1->second.p))
+								{
+									//std::cout << "TUPLE: " << it0->first << std::endl;
+									assert(it0->second.data == nullptr || it0->second.data != it1->second.data);
+									//std::cout << "EQUAL" << std::endl;
+									CertificateDynAspTuple::ESubsetRelation result; /* = me.checkRules(info.introducedRules, it0->first, info, false);
+								#ifndef NON_NORM_JOIN
+									assert(result >= CertificateDynAspTuple::ESR_EQUAL);
+								#endif*/
+									if ((!it0->first->isPseudo() || it0->second.p || it1->second.p) &&
+									        (result = me.checkRules(info.introducedRules, *it0->first, info, false)) >= CertificateDynAspTuple::ESR_EQUAL 
+										/*&& (!it0->first->isPseudo() || it0->second.p || it1->second.p)*/)
+									{
+										DBG("strictRes: "); DBG(result); DBG(std::endl);
+										it0->first->setStrict(result == CertificateDynAspTuple::ESR_INCLUDED_STRICT, *it0->second.data);
+										it0->first->setStrict(false, *it1->second.data);
+										bool strct = (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT) | it0->second.strict | it1->second.strict;
+										if ((result = it0->first->isConsense(*it0->second.data, *it1->second.data, info, decomposition, node, 
+											strct)) >= CertificateDynAspTuple::ESR_EQUAL)
+										{ //std::cout << "RULE_CHEK" << std::endl;
+											//it0->second, it1->second;
+											DBG("strct: "); DBG(strct); DBG(std::endl);
+											DBG("isCons: "); DBG(result); DBG(std::endl);
+										#ifdef USE_SELF_STRICT_DETECTION
+											//if ((non_solution = (up == &me && cert.strict)))
+											if (it0->first == me.getClone() && (strct) && (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT))
+											{
+												DBG("NON_SOL");
+												tupleType->clear();
+												//certs.clear();
+											#ifdef VEC_CERT_TYPE
+												tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(it0->first, true));
+											#else
+												tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(it0->first, true));
+											#endif
+										
+											#ifdef CHECK_CONSENSE
+												//certs.clear();
+												//p.second.clear();
+												//p.first->clearConsense(*p.second.data);
+											#endif 
+
+												break;
+											}
+
+											else
+										#endif
+										/*{
+											it0->first->setStrict(result == CertificateDynAspTuple::ESR_INCLUDED_STRICT, *it0->second.data);
+											it0->first->setStrict(false, *it1->second.data);
+											bool strct = result == CertificateDynAspTuple::ESR_INCLUDED_STRICT || it0->second.strict || it1->second.strict;
+											if ((result = it0->first->isConsense(*it0->second.data, *it1->second.data, info, decomposition, node, 
+												strct)) >= CertificateDynAspTuple::ESR_EQUAL)*/
+											{
+												//std::cout << "INS" << std::endl;
+										//else if ((result = it0->first->isConsense(info, decomposition, node, it0->second, it1->second, it0->second.strict || it1->second.strict, result == CertificateDynAspTuple::ESR_INCLUDED_STRICT)) >= CertificateDynAspTuple::ESR_EQUAL)
+												DynAspCertificateAlgorithm::insertIfNotSubsumed(info, tupleType, it0->first, strct && (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT));
+											}
+											//std::cout << result << std::endl;
+										}
+									}
+								#ifndef NON_NORM_JOIN
+									assert(result >= CertificateDynAspTuple::ESR_EQUAL);
+								#endif
+									++it0;
+								}
+								++it1;
+							}
+						}
+						/*for (auto& p : *cert)
+						{
+							assert (p.second.lastTouchedBy <= ptrOrigins->size());	//licked by at most everyone!
+							CertificateDynAspTuple::ESubsetRelation result = CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+							if (p.second.lastTouchedBy == ptrOrigins->size() && (!p.first->isPseudo() || p.second.p) 
+							#ifdef CHECK_CONSENSE	
+								&& (result = p.first->isConsense(*p.second.data, info, ppos, decomposition, node, p.second.strict)) >= CertificateDynAspTuple::ESR_EQUAL
+							#endif	
+								)	//licked by everyone!
+						#ifdef CHECK_CONSENSE
+							if (!non_solution)
+								p.second.clear();
+							//p.first->clearConsense(*p.second.data);
+						#endif 
+						}	*/
+					#else
 						tupleType->reserve(certs.size());
 						for (auto& p : certs)
 						{
@@ -1499,41 +1974,76 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 							CertificateDynAspTuple::ESubsetRelation result = CertificateDynAspTuple::ESR_INCLUDED_STRICT;
 							if (p.second.lastTouchedBy == ptrOrigins->size() && (!p.first->isPseudo() || p.second.p) 
 							#ifdef CHECK_CONSENSE	
-								&& (result = p.first->isConsense(*p.second.data, info, ppos, decomposition, node)) >= CertificateDynAspTuple::ESR_EQUAL
+								&& (result = p.first->isConsense(*p.second.data, info, ppos, decomposition, node, p.second.strict)) >= CertificateDynAspTuple::ESR_EQUAL
 							#endif	
 								)	//licked by everyone!
 							{
 								//assert(!p.first->isPseudo() || p.second.p);
 								//assert(p.first->isConsense(*p.second.data, info, ppos));
-								DBG("WTF"); DBG(p.first->isPseudo()); DBG( " vs "); DBG(p.second.p); DBG(std::endl);
+								//DBG("WTF"); DBG(p.first->isPseudo()); DBG( " vs "); DBG(p.second.p); DBG(std::endl);
 
 								//DBG("SUBSET "); DBG(&tuple); DBG(" "); /*DBG(result);*/ DBG(" "); DBG(p.second.strict);
-								DBG("SUBSET REAL"); DBG(p.first); DBG(" "); /*DBG(result);*/ DBG(" "); DBG(p.second.strict);
+								//DBG("SUBSET REAL"); DBG(p.first); DBG(" "); /*DBG(result);*/ DBG(" "); DBG(p.second.strict);
 								//assert(p.second.p == p.first->isPseudo());	//licked by everyone!
 								/*if (!p.second.strict)
 									p.second.strict |=
 											(me.checkRules(info.introducedRules, *p.first, info, false) ==
 												CertificateDynAspTuple::ESR_INCLUDED_STRICT);*/
-	#ifdef VEC_CERT_TYPE
-									tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(p.first, p.second.strict && result == CertificateDynAspTuple::ESR_INCLUDED_STRICT));
 
-	#else
-									tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(p.first,
-																									   p.second.strict && result == CertificateDynAspTuple::ESR_INCLUDED_STRICT));
-	#endif
+								DBG("strct: "); DBG(p.second.strict); DBG(std::endl);
+								DBG("isCons: "); DBG(result); DBG(std::endl);
+
+						#ifdef USE_SELF_STRICT_DETECTION
+								//if ((non_solution = (up == &me && cert.strict)))
+								if ((p.first == me.getClone() && p.second.strict && (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT)))
+								{
+									DBG("NON_SOL");
+									tupleType->clear();
+									//certs.clear();
+								#ifdef VEC_CERT_TYPE
+									tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(p.first, true));
+								#else
+									tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(p.first, true));
+								#endif
+							
+								#ifdef CHECK_CONSENSE
+									certs.clear();
+									//p.second.clear();
+									//p.first->clearConsense(*p.second.data);
+								#endif 
+
+									break;
+								}
+								else
+						#endif
+									DynAspCertificateAlgorithm::insertIfNotSubsumed(info, tupleType, p.first, p.second.strict && (result == CertificateDynAspTuple::ESR_INCLUDED_STRICT));
 							}
 						#ifdef CHECK_CONSENSE
-							p.first->clearConsense(*p.second.data);
+							#ifndef CACHE_CERTS
+								if (!non_solution)
+									p.second.clear();
+							#endif
+							//p.first->clearConsense(*p.second.data);
 						#endif 
 						}
+					#endif
 						DBG("postdown"); DBG("\n");
 					//#ifdef STRICT_MODE
 						assert(tupleType->size());
 					//#endif
 					}
+					DBG(tupleType->size()); DBG("\n");
+				#ifdef WRONG	
+					if (non_solution)
+					{
+						delete tupleType;
+						++ptrOrigins;
+					}
+					else 
+				#endif
 					if (tupleType->size())
 					{
-						CertificateDynAspTuple *t = DynAspCertificateAlgorithm::insertCompressed(tupleTypes, *tupleType,
+						CertificateDynAspTuple *t = insertCompressed(tupleTypes, *tupleType,
 																									 me, ptrOrigins, info);
 						if (t)
 							outputTuples.insert(t);
@@ -1542,12 +2052,41 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 #ifndef INT_ATOMS_TYPE
 				me.clean();
 #endif
+		
+				/*//TODO: REMOVE!
+				for (auto i : ccache)
+					if (i.second)
+					{
+						i.second->clear();
+						delete i.second;
+					}
+				ccache.clear();	*/
+			
 			}
+
+		#ifdef CACHE_CERTS
+			//delete[] certAtPos;
+			for (auto i : ccache)
+			{
+				if (i.second)
+				{
+					i.second->clear();
+					delete i.second;
+				}
+			}
+		#endif
+	#ifdef DEBUG_INFO
+			joins += times(&cpu) - wall;
+			//std::cout << "JOINS: " << joins << std::endl;
+	#endif
+	
 		}
 #endif
+	}
 
 #ifdef CLEANUP_COUNTER_SOLUTIONS
-		if (needAllTupleSets())	//otherwise will be cleaned for sure
+		//if (needAllTupleSets())	//otherwise will be cleaned for sure
+		if (further)	//otherwise will be cleaned for sure
 			for(size_t childIndex = 0; childIndex < childCount; ++childIndex)
 			{
 				ITupleSet &childTuples = tuples[decomposition.childAtPosition(node, childIndex)];
@@ -1555,6 +2094,23 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 					static_cast<IDynAspTuple *>(childTuples[pos])->cleanUpSecondLevel();
 			}
 #endif
+#ifdef CLEANUP_SOLUTIONS
+#ifdef USE_N_PASSES
+		{
+		if (!further && node == decomposition.root())		//cleanup after every pass
+			for (size_t pos = 0; pos < outputTuples.size(); ++pos)
+				if (static_cast<IDynAspTuple *>(outputTuples[pos])->cleanUpNonSolRoot(node, info, decomposition, tuples, dynasp::create::passes() >= 3 ? (!further & (dynasp::create::passes() < 4)) : true
+									))
+				{
+					//assert(false);
+					outputTuples.erase(pos);
+					--pos;
+				}
+		}
+#endif
+#endif
+
+
 
 		DBG(std::endl);
 
@@ -1569,9 +2125,87 @@ CertificateDynAspTuple* DynAspCertificateAlgorithm::insertCompressed(TupleTypes&
 		DBG(outputTuples.size()); DBG(std::endl);
 	}
 
+	void DynAspCertificateAlgorithm::removeStrictSelfLoop(const CertificateDynAspTuple* t) const
+	{
+		for (auto* up : t->evolution_)
+		{
+			for (auto it = up->origins_.begin(); it != up->origins_.end(); )
+			{
+				bool found = false;
+				for (auto* p : *it)
+					if (p == t)
+					{
+						found = true;
+						break;
+					}
+				if (found)
+					it = up->origins_.erase(it);
+				else
+					++it;
+			}
+			if (up->origins_.size() == 0)
+				removeStrictSelfLoop(up);
+		}
+	}
+
+	bool DynAspCertificateAlgorithm::insertIfNotSubsumed(const TreeNodeInfo& info, TupleType* tupleType, const CertificateDynAspTuple* p, bool strct)
+	{
+		bool found = false;
+
+		#ifdef CERT_IMPROVEMENT
+		//bool strct = p.second.strict && result == CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+		if (create::isSaveReductModels() && info.getRules())
+			for (auto it = tupleType->begin(); it != tupleType->end(); ++it)
+			{
+				if (it->cert == p)
+				{
+					it->updateStrict(strct);
+					found = true;
+					break;
+				}
+				else if ((it->cert->atoms_ & info.getAtoms()) == (p->atoms_ & info.getAtoms())
+				        //&& (p->reductAtoms_ & it->cert->reductAtoms_) >= 
+					  //&& it->cert->isPseudo() == p->isPseudo()
+				)
+				{
+					auto	r1 = ~it->cert->atoms_ & info.getRules(),
+						r2 = ~p->atoms_ & info.getRules();	
+					if ((r1 & r2) >= r2 && it->strict >= strct 
+				#ifndef TAKE_RISK
+						&& (it->cert->reductAtoms_ & p->reductAtoms_) >= p->reductAtoms_
+				#endif
+					)
+					{
+						found = true;
+						break;
+					}
+					else if ((r2 & r1) >= r1 && strct >= it->strict 
+				#ifndef TAKE_RISK
+						&& (p->reductAtoms_ & it->cert->reductAtoms_) >= it->cert->reductAtoms_
+				#endif		
+					)
+					{
+						it->updateCert(p);
+						it->updateStrict(strct);
+						found = true;
+						break;
+					}
+				}
+			}
+		#endif
+			if (!found)
+		#ifdef VEC_CERT_TYPE
+				tupleType->emplace_back(CertificateDynAspTuple::DynAspCertificatePointer(p, strct));
+
+		#else
+				tupleType->insert(CertificateDynAspTuple::DynAspCertificatePointer(p, strct)).first->updateStrict(strct);
+		#endif
+		return found;
+	}
+
 	bool DynAspCertificateAlgorithm::needAllTupleSets() const
 	{
-		return false;
+		return !further; //false;
 	}
 
 } // namespace dynasp

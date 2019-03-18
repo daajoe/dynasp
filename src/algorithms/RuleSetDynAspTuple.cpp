@@ -7,9 +7,15 @@
 #include "../../include/dynasp/DynAspCertificateAlgorithm.hpp"
 
 #include <dynasp/IGroundAspInstance.hpp>
-#include <cassert>
 #include <stack>
 #include <dynasp/create.hpp>
+
+//FIXME: use config.h info here, build check into autoconf
+#include <sys/times.h>
+
+#ifdef HAVE_UNISTD_H //FIXME: what if not def'd?
+	#include <unistd.h>
+#endif
 
 namespace dynasp
 {
@@ -53,7 +59,9 @@ namespace dynasp
 	RuleSetDynAspTuple::RuleSetDynAspTuple(bool /*leaf*/)
 		//: weight_(0), solutions_(1)
 	{
-	
+		#ifdef SUPPORTED_CHECK
+			supp_ = (~0);
+		#endif
 		/*if (leaf)
 		{
 			DynAspCertificate a;
@@ -86,7 +94,12 @@ namespace dynasp
 	}
 
 
-	void RuleSetDynAspTuple::mergeHash(Hash& h) const
+	void RuleSetDynAspTuple::mergeHash(Hash& 
+	#ifndef INT_ATOMS_TYPE
+	h
+	#endif
+	
+	) const
 	{
 	#ifndef INT_ATOMS_TYPE
 		for(rule_t rule : rules_)
@@ -131,6 +144,8 @@ namespace dynasp
 #ifndef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 #ifndef SINGLE_LAYER
 //#ifndef CLEANUP_SOLUTIONS
+
+	if (!create::isSatOnly())
 		assert(!(isPseudo() ^ (certificate_pointer_set_ == nullptr)));
 //#endif
 #endif
@@ -576,6 +591,17 @@ namespace dynasp
 				break;
 			if (ptr->solutionCount() == 0)
 				continue;
+		#ifdef INT_ATOMS_TYPE
+			assert(ptr->reductAtoms_ == 0);
+			if (const_cast<RuleSetDynAspTuple*>(this)->checkRelationExt(*this, ((ptr->atoms_) & info.int_rememberedAtoms), ((me.atoms_ | me.reductAtoms_) & info.int_rememberedAtoms), false) == CertificateDynAspTuple::ESR_NONE)
+				continue;
+
+			if (((me.atoms_ | me.reductAtoms_) & info.int_rememberedAtoms & info.int_negatedAtoms) != (ptr->atoms_ & info.int_rememberedAtoms & info.int_negatedAtoms))
+				continue;
+		#else
+			assert(false);
+		#endif
+
 			//break;
 			/*for (auto* ptr : evolution_)
 			{*/
@@ -975,7 +1001,7 @@ namespace dynasp
 			{
 	//#ifdef THREE_PASSES
 	//#ifdef NO_COMPUTE
-				if (dynasp::create::passes() >= 3 && reduct > 0)
+				if ((dynasp::create::passes() == 1 || dynasp::create::passes() >= 3) && reduct > 0)
 					break;
 	//#endif
 				atom_vector newFalseAtoms
@@ -1081,9 +1107,9 @@ namespace dynasp
 							#else
 								reductFalseAtoms.size() > 0
 							#endif
-						? 0 : solutions_;
+						? 0 : solutions_  * info.instance->cost(newTrueAtoms, newFalseAtoms, info);
 					#else
-						newTuple->solutions_ = solutions_;
+						newTuple->solutions_ = solutions_  * info.instance->cost(newTrueAtoms, newFalseAtoms, info);
 					#endif
 					if (found.second)
 					{
@@ -1196,6 +1222,7 @@ namespace dynasp
 		atom_vector t;
 		t.insert(t.end(), atoms_.begin(), atoms_.end());
 		unsigned int weight = info.instance->weight(t, f, info);
+		float sol = info.instance->cost(t,f,info);
 		#ifdef NON_NORM_JOIN
 			assert(false);	//TODO
 		#endif
@@ -1204,6 +1231,7 @@ namespace dynasp
 		#ifdef NON_NORM_JOIN
 			#ifdef INT_ATOMS_TYPE
 				unsigned int weight = info.instance->weight(atoms_ & info.getJoinAtoms(), ~atoms_ & info.getJoinAtoms(), info);
+				float sol = info.instance->cost(atoms_ & info.getJoinAtoms(), ~atoms_ & info.getJoinAtoms(), info);
 			#else
 				assert(false);
 			#endif
@@ -1217,6 +1245,14 @@ namespace dynasp
 			f
 		#endif
 															, info);
+		float sol = info.instance->cost(atoms_, 
+		#ifdef INT_ATOMS_TYPE	
+			~atoms_ & info.getAtoms()
+		#else
+			f
+		#endif
+															, info);
+
 														#endif
 	#endif
 	#ifdef INT_ATOMS_TYPE
@@ -1315,7 +1351,7 @@ namespace dynasp
 			//TODO: nicht naeher bestimmt up to now
 			if (!isPseudo())
 			{
-				solutions_ *= t->solutions_;
+				solutions_ *= t->solutions_ / sol;
 				assert(t->weight_ >= weight);
 				weight_ += t->weight_ - weight;
 			}
@@ -1353,7 +1389,11 @@ namespace dynasp
 				si = ruleObject.check(
 						rightTrueAtoms,
 						rightFalseAtoms,
-						rightReductFalseAtoms, info);
+						rightReductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 			}
 			else // rightIter != rightRules.end()
 			{
@@ -1362,7 +1402,11 @@ namespace dynasp
 				si = ruleObject.check(
 						leftTrueAtoms,
 						leftFalseAtoms,
-						leftReductFalseAtoms, info);
+						leftReductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 			}
 			--rule_cnt;
 
@@ -1394,20 +1438,84 @@ namespace dynasp
 	#endif
 	}
 
+//#undef TAKE_PSEUDO_RISKS
+//#define TAKE_PSEUDO_RISKS
+
 //TODO: only INT_ATOMS_TYPE at the moment!
 #ifdef CHECK_CONSENSE
 #ifndef INT_ATOMS_TYPE
 	assert(false);
 #endif
-	CertificateDynAspTuple::ESubsetRelation RuleSetDynAspTuple::isConsense(CertificateDynAspTuple::IConsenseData & d, const TreeNodeInfo& info, unsigned int cnt, const htd::ITreeDecomposition& td, htd::vertex_t node) const
+
+#ifdef DEBUG_INFO
+	clock_t jointime = 0;
+#endif
+
+	CertificateDynAspTuple::ESubsetRelation RuleSetDynAspTuple::isConsense(CertificateDynAspTuple::IConsenseData & d, 
+#ifdef CACHE_CERTS
+		CertificateDynAspTuple::IConsenseData &d1,
+#endif
+	const TreeNodeInfo& info, 
+#ifndef CACHE_CERTS	
+		unsigned int cnt, 
+#endif	
+	const htd::ITreeDecomposition& td, htd::vertex_t node, bool strictOcc) const
 	{
-		if (info.getRules() == 0)
+		DBG(" STATUS "); DBG(info.getRules()); DBG(","); DBG(isPseudo()); DBG(std::endl);
+		if (info.int_rememberedRules == 0)
 			return CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+	
+		//std::cout << "non_strct " << std::endl;
+
+		//TODO: IMPROVEME: Not sure if this is correct in all the cases!
+		/*if (!isPseudo())	//simple check, no rules, no pseudo
+			return (atoms_ & static_cast<RuleConsenseData&>(d).rules) >= static_cast<RuleConsenseData&>(d).rules ? CertificateDynAspTuple::ESR_INCLUDED_STRICT : CertificateDynAspTuple::ESR_NONE;*/
+
+		/*{
+			DBG("CHECK CONS "); DBG(atoms_); DBG(","); DBG(static_cast<RuleConsenseData&>(d).rules); DBG(std::endl);
+			return (atoms_ & (info.int_rememberedRules)) == static_cast<RuleConsenseData&>(d).rules ? CertificateDynAspTuple::ESR_INCLUDED_STRICT : CertificateDynAspTuple::ESR_NONE;
+		}*/
+		
+#ifndef CACHE_CERTS
+		if ((atoms_ & static_cast<RuleConsenseData&>(d).rules) < static_cast<RuleConsenseData&>(d).rules)
+			return CertificateDynAspTuple::ESR_NONE;
+
+	#ifdef TAKE_PSEUDO_RISKS	
 		if (!isPseudo())	//simple check, no rules, no pseudo
-			return (atoms_ & static_cast<RuleConsenseData&>(d).rules) >= static_cast<RuleConsenseData&>(d).rules ? CertificateDynAspTuple::ESR_INCLUDED_STRICT : CertificateDynAspTuple::ESR_NONE;
+			return CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+	#endif
+		RuleConsenseData& dd = static_cast<RuleConsenseData&>(d);
+	#ifdef REVERSE_EXTENSION_POINTER_SEARCH_IDX
+		auto itu = dd.ups.begin(), its = dd.tupleSet.begin();
+		bool found = false;
+		while (itu != dd.ups.end() && its != dd.tupleSet.end())
+		{
+			if (itu->first < its->first)
+				++itu;
+			else
+			{
+				if (itu->first == its->first)
+				{
+					if (dd.strict || itu->second || its->second)
+						return CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+					if (!strictOcc)
+						return CertificateDynAspTuple::ESR_EQUAL;
+					found = true;
+					++itu;
+				}
+				++its;
+			}
+		}
+		return found ? CertificateDynAspTuple::ESR_EQUAL : CertificateDynAspTuple::ESR_NONE;
+	#endif
+		
+	#ifdef DEBUG_INFO
+		struct tms cpu;
+		clock_t wall = times(&cpu);
+	#endif
 		bool foundOne = false;
 		std::vector<unsigned int> poses(cnt);
-		RuleConsenseData& dd = static_cast<RuleConsenseData&>(d);
+		//RuleConsenseData& dd = static_cast<RuleConsenseData&>(d);
 		for (unsigned int pos = cnt - 1; poses[0] < dd.tuples[0].size(); poses[pos]++)
 		{
 			if (poses[pos] < dd.tuples[pos].size())
@@ -1421,11 +1529,36 @@ namespace dynasp
 					pseudo |= dd.tuples[p][poses[p]]->cert->isPseudo();
 					strict |= dd.tuples[p][poses[p]]->strict;
 					rules &= info.rule_transform(dd.tuples[p][poses[p]]->cert->atoms_, td.childAtPosition(node, p));
+				/*#ifndef ENUM_SOLUTIONS
+					auto rt = dd.tuples[p][poses[p]]->cert->reductAtoms_ & info.getRules();
+				#else
+					auto rt = info.rule_transform(dd.tuples[p][poses[p]]->cert->atoms_, td.childAtPosition(node, p));
+				#endif
+					rules &= rt | (info.getRules() & ~info.transform(td.childAtPosition(node,p))); // & ~rt);
+				*/
+
+
+					if (pseudo && !isPseudo())
+						break;
 				}
 				if (isPseudo() == pseudo && (atoms_ & rules) >= rules)	//both conditions at once!
+				//if (isPseudo() == pseudo && (atoms_ & info.int_rememberedRules) == rules)	//both conditions at once!
 				{
 					if (dd.strict || strict)
+					{
+						DBG("strict.. strict "); DBG(dd.strict); DBG(","); DBG(strict); DBG(std::endl);
+					#ifdef DEBUG_INFO
+						jointime += times(&cpu) - wall;
+					#endif
 						return CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+					}
+					if (!dd.strict && !strictOcc)
+					{
+					#ifdef DEBUG_INFO
+						jointime += times(&cpu) - wall;
+					#endif
+						return CertificateDynAspTuple::ESR_EQUAL;
+					}
 					foundOne = true;
 				}
 			}
@@ -1435,27 +1568,159 @@ namespace dynasp
 				--pos;
 			}
 		}
+#else
+		RuleConsenseData& dd = static_cast<RuleConsenseData&>(d);
+		RuleConsenseData& dd1 = static_cast<RuleConsenseData&>(d1);
+	
+		//printf("%x %x %x\n", atoms_ & info.getRules(), dd.rules, dd1.rules);
+		
+		if ((atoms_ & (dd.rules & dd1.rules)) < (dd.rules & dd1.rules))
+			return CertificateDynAspTuple::ESR_NONE;
+		
+	#ifdef TAKE_PSEUDO_RISKS	
+		if (!isPseudo())	//simple check, no rules, no pseudo
+			return CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+	#endif
+
+		//std::cout << "OK" << std::endl;
+	#ifdef DEBUG_INFO
+		struct tms cpu;
+		clock_t wall = times(&cpu);
+	#endif
+		bool foundOne = false;
+		for (unsigned int pos = 0; pos < dd.tuples.size(); pos++)
+		{
+			if (dd.tuples[pos]->cert->isPseudo() && !isPseudo())
+				continue;
+			
+			for (unsigned int ppos = 0; ppos < dd1.tuples.size(); ppos++)
+			{
+				assert(dd.tuples[pos] != dd1.tuples[ppos]);
+				bool pseudo = dd.tuples[pos]->cert->isPseudo() | dd1.tuples[ppos]->cert->isPseudo(), 
+				     strict = dd.tuples[pos]->strict | dd1.tuples[ppos]->strict;
+				atom_vector rules = info.rule_transform(dd.tuples[pos]->cert->atoms_, td.childAtPosition(node, 0)) & 
+						    info.rule_transform(dd1.tuples[ppos]->cert->atoms_, td.childAtPosition(node, 1));
+				/*#ifndef ENUM_SOLUTIONS
+					auto rt = dd.tuples[p][poses[p]]->cert->reductAtoms_ & info.getRules();
+				#else
+					auto rt = info.rule_transform(dd.tuples[p][poses[p]]->cert->atoms_, td.childAtPosition(node, p));
+				#endif
+					rules &= rt | (info.getRules() & ~info.transform(td.childAtPosition(node,p))); // & ~rt);
+				*/
+				
+				if (isPseudo() == pseudo && (atoms_ & rules) >= rules)	//both conditions at once!
+				//if (isPseudo() == pseudo && (atoms_ & info.int_rememberedRules) == rules)	//both conditions at once!
+				{
+					//std::cout << "RULES: " << rules << "(" << dd.tuples[pos]->cert << "," << dd1.tuples[ppos]->cert << ")" << info.rule_transform(dd.tuples[pos]->cert->atoms_, td.childAtPosition(node, 0)) << "," <<  info.rule_transform(dd1.tuples[ppos]->cert->atoms_, td.childAtPosition(node, 1)) << " ID: " << td.childAtPosition(node, 1)  << std::endl;
+					//std::cout << "DD-Rules: " << &dd << "," << dd.rules << std::endl;
+					//std::cout << "DD1-Rules: " << &dd1 << "," << dd1.rules << std::endl;
+					//assert ((atoms_ & (dd.rules & dd1.rules)) >= (dd.rules & dd1.rules));
+					if (dd.strict | dd1.strict | strict)
+					{
+						DBG("strict.. strict "); DBG(dd.strict | dd1.strict); DBG(","); DBG(strict); DBG(std::endl);
+					#ifdef DEBUG_INFO
+						jointime += times(&cpu) - wall;
+					#endif
+						return CertificateDynAspTuple::ESR_INCLUDED_STRICT;
+					}
+					DBG("str: "); DBG(~strictOcc); DBG(" vs "); DBG(!strictOcc); DBG(std::endl);
+					if (!strictOcc)
+					{
+						DBG("never strict.."); DBG(dd.strict | dd1.strict | strictOcc); DBG(","); DBG(strict); DBG(std::endl);
+					#ifdef DEBUG_INFO
+						jointime += times(&cpu) - wall;
+					#endif
+						return CertificateDynAspTuple::ESR_EQUAL;
+					}
+					foundOne = true;
+				}
+			}
+		}
+
+#endif
+	#ifdef DEBUG_INFO
+		jointime += times(&cpu) - wall;
+	#endif
+
 		if (foundOne)
+		{
+			//assert ((atoms_ & (dd.rules & dd1.rules)) >= (dd.rules & dd1.rules));
 			return CertificateDynAspTuple::ESR_EQUAL;
+		}
+
 		return CertificateDynAspTuple::ESR_NONE;
 	}
 
 
-	void RuleSetDynAspTuple::updateConsense(const DynAspCertificatePointer& cert, CertificateDynAspTuple::IConsenseData *& d, const TreeNodeInfo& info, unsigned int pos, htd::vertex_t id) const
+	void RuleSetDynAspTuple::updateConsense(const DynAspCertificatePointer& cert, CertificateDynAspTuple::IConsenseData *& d, const TreeNodeInfo& info, unsigned int 
+	
+#ifndef CACHE_CERTS
+	pos
+#endif	
+	, htd::vertex_t id) const
 	{
-		if (info.getRules())
+		if (info.int_rememberedRules)
 		{
 			RuleConsenseData* dd = d ? static_cast<RuleConsenseData*>(d) :  new RuleConsenseData() ;
 			d = dd;
-			if (!isPseudo())
+
+			{
+				DBG("UPDT CONS: "); DBG(dd); DBG(";"); DBG(info.rule_transform(cert.cert->atoms_, id)); DBG(std::endl);
+				//std::cout << "UPDT CONS: " << (dd) << (";") << "(ID: " << id  << ") ," << (info.rule_transform(cert.cert->atoms_, id)) << (std::endl);
 				dd->rules &= info.rule_transform(cert.cert->atoms_, id);
-			else 
+				//std::cout << "RESULT " << dd->rules << std::endl;
+				/*auto rt = info.rule_transform(cert.cert->atoms_, id);
+				dd->rules &= rt | (info.getRules() & ~info.transform(id));*/
+			}
+			//TODO: IMPROVEME: Not sure if this is correct in all the cases!
+			//if (isPseudo())
+		#ifdef REVERSE_EXTENSION_POINTER_SEARCH_IDX
+			if (pos == 0)
+			{
+				auto itx = cert.cert->evolutionWith_.find(this);
+				assert(itx != cert.cert->evolutionWith_.end());
+				auto it = itx->second.begin();
+				//cert.cert->evolutionWith_.reserve(cert.cert->evolutionWith_.size() + (end - itx));
+				for (; it != itx->second.end(); ++it)
+					dd->ups.emplace(*it, cert.strict).first->second |= cert.strict;
+			}
+			else
+			{
+				/*if (cert.strict)
+					dd->tupleSetS.emplace(cert.cert);
+				else*/
+				dd->tupleSet.emplace(cert.cert, cert.strict).first->second |= cert.strict;
+			}
+			return;
+		#endif
+
+	#ifdef TAKE_PSEUDO_RISKS
+		if (isPseudo())
+	#endif
+		#ifdef CACHE_CERTS
+			insertMergedOnce(&cert, dd->tuples);
+		#else
 			{
 				assert(pos <= dd->tuples.size());
 				if (pos == dd->tuples.size())
 					dd->tuples.emplace_back();
+
+			/*#ifndef ENUM_SOLUTIONS
+				const_cast<CertificateDynAspTuple*>(cert.cert)->reductAtoms_ = info.rule_transform(cert.cert->atoms_, id) | (cert.cert->reductAtoms_ & (1 << (INT_ATOMS_TYPE - 1))); //cert.cert->atoms_ & info.
+				for (auto it = dd->tuples[pos].begin(); it != dd->tuples[pos].end(); ++it)
+					if ((*it)->cert->reductAtoms_ == cert.cert->reductAtoms_ && (*it)->cert->isPseudo() == cert.cert->isPseudo() && (*it)->strict == cert.strict)
+						return;
+
 				dd->tuples[pos].push_back(&cert);
+			#else*/
+				insertMergedOnce(&cert, dd->tuples[pos]);
+			//#endif
+				
+				/*if (dd->tuples[pos].size() >= 3)
+					std::cout << dd->tuples[pos].size() << std::endl;*/
+				
 			}
+		#endif
 		}	
 	}
 
@@ -1469,6 +1734,7 @@ namespace dynasp
 			const IDynAspTuple &tuple,
 			const atom_vector& tupleVertices) const
 	{
+		//assert(false);
 		const RuleSetDynAspTuple &other =
 			static_cast<const RuleSetDynAspTuple &>(tuple);
 
@@ -1702,7 +1968,13 @@ namespace dynasp
 				newTuple->pseudo = pseudo || other.pseudo;
 			#endif
 		#endif
-		newTuple->solutions_ = solutions_ * other.solutions_;
+		newTuple->solutions_ = solutions_ * other.solutions_ / info.instance->cost(
+			#ifdef INT_ATOMS_TYPE 
+				atoms_ & joinVertices & info.getAtoms(), ~atoms_ & joinVertices & info.getAtoms()
+			#else
+				trueAtoms, falseAtoms
+			#endif
+			, info);
 
 #ifdef VEC_ATOMS_TYPE
 		//TODO: special case!
@@ -1903,7 +2175,8 @@ namespace dynasp
 		//furthermore, falseAtoms keeps the same, i.e.\ \bar{atoms_}
 		// check rules
 
-		assert(getClone() == this);
+		if (dynasp::create::passes() < 4)
+			assert(getClone() == this);
 		assert(other.getClone() == &other);
 		//TODO: remove const cast
 		//RuleSetDynAspTuple& me = *const_cast<RuleSetDynAspTuple*>(static_cast<const RuleSetDynAspTuple*>(getClone()));
@@ -2010,7 +2283,8 @@ namespace dynasp
 		)
 	{
 		#ifdef INT_ATOMS_TYPE
-		for (unsigned int pos = POP_CNT(info.getAtoms()); pos < INT_ATOMS_TYPE; ++pos)
+		const unsigned int cnt = (unsigned int)(POP_CNT(info.getAtoms()) + POP_CNT(info.getRules()));
+		for (unsigned int pos = POP_CNT(info.getAtoms()); pos < cnt; ++pos)
 		{
 			atom_vector rr = 1 << pos;
 			if ((rr & rules) == 0)
@@ -2036,7 +2310,11 @@ namespace dynasp
 				info.instance->rule(rule).check(
 						trueAtoms,
 						falseAtoms,
-						reductFalseAtoms, info);
+						reductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 
 			if(si.unsatisfied) return false;
 			if(si.satisfied) continue;
@@ -2068,7 +2346,11 @@ namespace dynasp
 				info.instance->rule(rule).check(
 						trueAtoms,
 						falseAtoms,
-						reductFalseAtoms, info);
+						reductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 
 			if(si.unsatisfied) return false;
 			if(si.satisfied) continue;
@@ -2117,7 +2399,8 @@ namespace dynasp
 		)
 	{
 	#ifdef INT_ATOMS_TYPE
-		for (unsigned int pos = POP_CNT(info.getAtoms()) + info.introducedRules.size(); pos < INT_ATOMS_TYPE; ++pos)
+		unsigned int szx = (unsigned int)(POP_CNT(info.getAtoms()) + POP_CNT(info.getRules())); //info.introducedRules.size() + info.rememberedRules.size());
+		for (unsigned int pos = POP_CNT(info.getAtoms()) + info.introducedRules.size(); pos < szx /* INT_ATOMS_TYPE*/; ++pos)
 		{
 			atom_vector r = 1 << pos;
 			if ((r & info.int_rememberedRules) == 0)
@@ -2149,7 +2432,11 @@ namespace dynasp
 				si = ruleObject.check(
 						rightTrueAtoms,
 						rightFalseAtoms,
-						rightReductFalseAtoms, info);
+						rightReductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 			}
 			else // rightIter != rightRules.end()
 			{
@@ -2158,7 +2445,11 @@ namespace dynasp
 				si = ruleObject.check(
 						leftTrueAtoms,
 						leftFalseAtoms,
-						leftReductFalseAtoms, info);
+						leftReductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 			}
 
 
@@ -2202,14 +2493,22 @@ namespace dynasp
 				si = ruleObject.check(
 						rightTrueAtoms,
 						rightFalseAtoms,
-						rightReductFalseAtoms, info);
+						rightReductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 			}
 			else // rightIter != rightRules.end()
 			{
 				si = ruleObject.check(
 						leftTrueAtoms,
 						leftFalseAtoms,
-						leftReductFalseAtoms, info);
+						leftReductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							nullptr,
+						#endif
+						info);
 			}
 
 			if(si.unsatisfied) return false;

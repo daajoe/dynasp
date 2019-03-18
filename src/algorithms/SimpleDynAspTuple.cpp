@@ -3,8 +3,6 @@
 #endif
 #include "../util/debug.hpp"
 
-#include <cassert>
-
 #include "SimpleDynAspTuple.hpp"
 #include "../../include/dynasp/IDynAspTuple.hpp"
 #include <dynasp/IGroundAspInstance.hpp>
@@ -47,6 +45,9 @@ namespace dynasp
 
 	SimpleDynAspTuple::SimpleDynAspTuple(/*bool leaf*/)
 	{
+	/*#ifdef SUPPORTED_CHECK
+		supp_ = ~((atom_vector)0) >> 1;
+	#endif*/
 		/*if (leaf)
 		{
 			DynAspCertificate c;
@@ -189,6 +190,9 @@ namespace dynasp
 	#endif*/
 				);
 		atom_vector trueAtoms, reductFalseAtoms, falseAtoms;
+	#ifdef SUPPORTED_CHECK
+		atom_vector supp = me.supp_;
+	#endif
 	#ifndef INT_ATOMS_TYPE
 		trueAtoms.reserve(numIntro + me.atoms_.size());
 		trueAtoms.insert(trueAtoms.end(), me.atoms_.begin(), me.atoms_.end());
@@ -238,16 +242,23 @@ namespace dynasp
 			unsigned int sz = reductFalseIndices.size();
 			//for(size_t reduct = 0; reduct < (1u << reductFalseIndices.size()); ++reduct)
 	#else
+			//std::cout << info.int_constrainedFactAtoms << ";" <<  (subset) << std::endl;
+			if (info.int_constrainedFactAtoms & (~(subset | trueAtoms)))
+				continue;
+			else if (info.int_constrainedNFactAtoms & (subset | trueAtoms))
+				continue;
 			newTrueAtoms = subset;
 			trueAtoms |= subset;
 			unsigned int sz = numIntro - POP_CNT(newTrueAtoms);
-
+		/*#ifdef SUPPORTED_CHECK
+			supp &= trueAtoms;
+		#endif*/
 	#endif
 			for(size_t reduct = 0; reduct < (1u << sz); ++reduct)
 			{
 	//#ifdef THREE_PASSES
 	//#ifdef NO_COMPUTE
-				if (dynasp::create::passes() >= 3 && reduct > 0)
+				if ((dynasp::create::passes() == 1 || dynasp::create::passes() >= 3) && reduct > 0)
 					break;
 	//#endif
 	//#endif
@@ -292,6 +303,9 @@ namespace dynasp
 						trueAtoms,
 						falseAtoms,
 						reductFalseAtoms,
+					#ifdef SUPPORTED_CHECK
+						&(supp |= (reductFalseAtoms | falseAtoms)),
+					#endif
 						info.introducedRules, info);
 
 				//TODO: use whole rules
@@ -313,6 +327,9 @@ namespace dynasp
 				#ifdef INT_ATOMS_TYPE
 					newTuple->reductAtoms_ = reductFalseAtoms;
 					newTuple->atoms_ = trueAtoms;
+					#ifdef SUPPORTED_CHECK
+						newTuple->supp_ = supp;
+					#endif
 				#else
 					newTuple->reductAtoms_.insert(reductFalseAtoms.begin(), reductFalseAtoms.end());
 
@@ -355,9 +372,10 @@ namespace dynasp
 						#else
 							reductFalseAtoms.size() > 0
 						#endif
-					? 0 : solutions_;
+					? 0 : solutions_ * info.instance->cost(newTrueAtoms, newFalseAtoms, info);
 				#else
-					newTuple->solutions_ = solutions_;
+					newTuple->solutions_ = solutions_ * info.instance->cost(newTrueAtoms, newFalseAtoms, info);
+					//std::cout << "c:" << newTuple->solutions_ << std::endl;
 				#endif
 					DBG(newTuple->isPseudo() ? "yes" : "no");
 					DBG("\t");
@@ -446,6 +464,10 @@ namespace dynasp
 				#else
 					reductFalseAtoms = me.reductAtoms_;
 					falseAtoms = ~(me.atoms_ | me.reductAtoms_) & info.int_rememberedAtoms;
+					
+					#ifdef SUPPORTED_CHECK
+						supp = me.supp_;
+					#endif
 				#endif
 			}
 
@@ -485,6 +507,10 @@ namespace dynasp
 				);*/
 
 		atom_vector trueAtoms, reductFalseAtoms, falseAtoms;
+		#ifdef SUPPORTED_CHECK
+			atom_vector supp = me.supp_;
+		#endif
+
 	#ifndef INT_ATOMS_TYPE
 		trueAtoms.reserve(numIntro + me.atoms_.size());
 		trueAtoms.insert(trueAtoms.end(), me.atoms_.begin(), me.atoms_.end());
@@ -541,7 +567,14 @@ namespace dynasp
 
 			for(size_t reduct = 0; reduct < (1u << sz); ++reduct)
 			{
-				if (!me.isPseudo() && reduct == 0)
+				if (!me.isPseudo() &&
+				
+				#ifndef NOT_MERGE_PSEUDO
+					reductAtoms_ == 0 &&
+					//&& evolution_.size() != 0 
+				#endif	
+
+				reduct == 0)
 					continue;
 				//atom_vector newFalseAtoms;
 				//newFalseAtoms.reserve(numIntro);
@@ -569,11 +602,16 @@ namespace dynasp
 					++p;
 				}
 			#endif
-
+				/*#ifdef SUPPORTED_CHECK
+					supp |= (reductFalseAtoms | falseAtoms);
+				#endif*/
 				bool validTuple = checkRules(
 						trueAtoms,
 						falseAtoms,
 						reductFalseAtoms,
+					#ifdef SUPPORTED_CHECK
+						&(supp |= (reductFalseAtoms | falseAtoms)),
+					#endif
 						info.introducedRules, info);
 
 				//TODO: use whole rules
@@ -597,6 +635,9 @@ namespace dynasp
 				#else
 					newTuple->reductAtoms_ = reductFalseAtoms;
 					newTuple->atoms_ = trueAtoms;
+					#ifdef SUPPORTED_CHECK
+						newTuple->supp_ = supp;
+					#endif
 				#endif
 					/*newTuple->introWeight_ = info.instance->weight(newTrueAtoms, newFalseAtoms, info);
 
@@ -610,7 +651,14 @@ namespace dynasp
 						newTuple->pseudo = true;
 					#endif
 				#else
-					newTuple->reductAtoms_ |= (1 << (INT_ATOMS_TYPE - 1));
+
+					#ifdef NOT_MERGE_PSEUDO
+						newTuple->reductAtoms_ |= (1 << (INT_ATOMS_TYPE - 1));
+					#else
+						newTuple->solutions_ = 0;
+						newTuple->weight_ = (std::size_t)(-1);
+					#endif
+
 				#endif
 					//pseudo solutions have 0 solutions, shall be removed later...
 				#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
@@ -641,6 +689,10 @@ namespace dynasp
 			#else
 				reductFalseAtoms = reductAtoms_;
 				falseAtoms = ~(me.atoms_ | me.reductAtoms_) & info.int_rememberedAtoms;
+				#ifdef SUPPORTED_CHECK
+					supp = me.supp_; //(reductFalseAtoms | falseAtoms)),
+				#endif
+
 			#endif
 			}
 
@@ -862,7 +914,7 @@ namespace dynasp
 	}*/
 
 
-
+//#define NOT_MERGE_PSEUDO
 	void SimpleDynAspTuple::introduceFurtherCompressed(
 			const TreeNodeInfo &info, /*IDynAspTuple::EvaluatedTuples& tuplesDone,*/ IDynAspTuple::ComputedCertificateTuples& certTuplesComputed,
 			sharp::ITupleSet &outputTuples, unsigned int maxsize) const
@@ -881,6 +933,10 @@ namespace dynasp
 			//TODO: note indirection via getClone();
 			const SimpleDynAspTuple &me = *this;
 			atom_vector trueAtoms, reductFalseAtoms, falseAtoms;
+		/*#ifdef SUPPORTED_CHECK
+			atom_vector supp = me.supp_;
+		#endif*/
+
 		#ifndef INT_ATOMS_TYPE
 			trueAtoms.reserve(numIntro + me.atoms_.size());
 			trueAtoms.insert(trueAtoms.end(), me.atoms_.begin(), me.atoms_.end());
@@ -895,6 +951,7 @@ namespace dynasp
 			trueAtoms = me.atoms_;
 			reductFalseAtoms = me.reductAtoms_;
 			falseAtoms = info.int_rememberedAtoms & ~(me.atoms_ | me.reductAtoms_);
+			
 		#endif
 
 
@@ -913,7 +970,11 @@ namespace dynasp
 		{
 			auto *ptr = static_cast<CertificateDynAspTuple *>(outputTuples[out]);
 		#ifndef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
-			if (ptr->isPseudo())
+			if (ptr->isPseudo()
+		#ifdef NOT_MERGE_PSEUDO
+				|| ptr->reductAtoms_
+		#endif
+			)
 				break;
 		#endif
 			if (ptr->solutionCount() == 0
@@ -924,6 +985,17 @@ namespace dynasp
 				#endif
 			)
 				continue;
+
+		#ifdef INT_ATOMS_TYPE
+			assert(ptr->reductAtoms_ == 0);
+			if (const_cast<SimpleDynAspTuple*>(this)->checkRelationExt(*this, ((ptr->atoms_) & info.int_rememberedAtoms), ((me.atoms_ | me.reductAtoms_) & info.int_rememberedAtoms), false) == CertificateDynAspTuple::ESR_NONE)
+				continue;
+			if (((me.atoms_ | me.reductAtoms_) & info.int_negatedAtoms & info.int_rememberedAtoms) != (ptr->atoms_ & info.int_rememberedAtoms & info.int_negatedAtoms))
+				continue;
+		#else
+			assert(false);
+		#endif
+
 					//break;
 			/*for (auto* ptr : evolution_)
 			{*/
@@ -984,7 +1056,14 @@ namespace dynasp
 			#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 				if (!isPseudoFlag() && reduct == 0)
 			#else
-				if (!isPseudo() && reduct == 0)
+				//std::cout << atoms_ << "," << reductAtoms_ << std::endl;
+				assert(evolution_.size() == 0);
+				if ((!isPseudo() 
+				#ifndef NOT_MERGE_PSEUDO
+					&& reductAtoms_ == 0
+					//&& evolution_.size() != 0 
+				#endif	
+				) && reduct == 0)
 			#endif
 					continue;
 				/*atom_vector newTrueAtoms;
@@ -1050,7 +1129,12 @@ namespace dynasp
 			#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 				if (!isPseudoFlag() && !addedReduct)
 			#else
-				if (!isPseudo() && !addedReduct)// !reductFalseAtoms.size())
+				if ((!isPseudo()  	
+				#ifndef NOT_MERGE_PSEUDO
+					&& reductAtoms_ == 0
+					//&& evolution_.size() != 0 
+				#endif	
+				&& !addedReduct) || (subset & reduct & info.int_negatedChoiceAtoms))// || POP_CNT(reductFalseAtoms) > 1) //|| POP_CNT(falseAtoms & info.int_negatedAtoms & ptr->atoms_) != 0)// !reductFalseAtoms.size())
 			#endif
 				{
 #ifdef INT_ATOMS_TYPE
@@ -1131,7 +1215,10 @@ namespace dynasp
 			#ifdef INT_ATOMS_TYPE
 				newTuple->reductAtoms_ = reductFalseAtoms;
 				newTuple->atoms_ = trueAtoms;
-
+				
+				#ifdef SUPPORTED_CHECK
+					newTuple->supp_ = (me.supp_ | reductFalseAtoms | falseAtoms);
+				#endif
 
 			#else
 				newTuple->mergeHashValue =0;
@@ -1148,7 +1235,13 @@ namespace dynasp
 				newTuple->pseudo = true;
 			#endif
 #else
+			
+			#ifdef NOT_MERGE_PSEUDO
 				newTuple->reductAtoms_ |= (1 << (INT_ATOMS_TYPE - 1));
+			#else
+				newTuple->solutions_ = 0;
+				newTuple->weight_ = (std::size_t)(-1);
+			#endif
 #endif
 				#ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
 					newTuple->solutions_ = 0;
@@ -1159,7 +1252,10 @@ namespace dynasp
 					bool validTuple = checkRules(
 							trueAtoms,
 							falseAtoms,
-							reductFalseAtoms,
+							reductFalseAtoms, 
+						#ifdef SUPPORTED_CHECK
+							&newTuple->supp_,
+						#endif
 							info.introducedRules, info);
 
 					//TODO: use whole rules
@@ -1207,8 +1303,9 @@ namespace dynasp
 					#else
 						newTuple->reductAtoms_ |= (1 << (INT_ATOMS_TYPE - 1));
 					#endif*/
-
+					#ifdef NOT_MERGE_PSEUDO
 						assert(newTuple->isPseudo());
+					#endif
 						//pseudo solutions have 0 solutions, shall be removed later...
 						/*
 #ifdef COMBINE_PSEUDO_PSEUDO_SOLUTIONS
@@ -1267,7 +1364,9 @@ namespace dynasp
 					static_cast<CertificateDynAspTuple*>(*found.first)->pseudo = true;
 				#endif
 	#else
+				#ifdef NOT_MERGE_PSEUDO
 					static_cast<CertificateDynAspTuple*>(*found.first)->reductAtoms_ |= (1 << (INT_ATOMS_TYPE - 1));
+				#endif
 	#endif
 					//static_cast<CertificateDynAspTuple*>(*found.first)->solutions_ = 0;
 		#endif
@@ -1380,7 +1479,14 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 		DBG_COLL(reductAtoms_); DBG("x"); DBG_COLL(other.reductAtoms_);
 		DBG("\t");
 
+	#ifndef USE_LAME_BASE_JOIN
+		assert(false);
+	#endif
+
 #ifdef INT_ATOMS_TYPE
+	#ifdef SUPPORTED_CHECK
+		atom_vector supp = supp_ | other.supp_;
+	#endif
 	//#ifdef USE_LAME_JOIN
 			if ((atoms_ & joinVertices) == (other.atoms_ & joinVertices) &&
 				(reductAtoms_ & joinVertices) == (other.reductAtoms_ & joinVertices))
@@ -1391,6 +1497,9 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 							//(info.int_introducedAtoms | info.int_rememberedAtoms) &
 							~atoms_ & joinVertices,
 							reductAtoms_ & joinVertices,
+						#ifdef SUPPORTED_CHECK
+							&supp,
+						#endif
 							info.rememberedRules, info))
 				{
 					//delete newTuple;
@@ -1541,7 +1650,10 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 		SimpleDynAspTuple *newTuple = new SimpleDynAspTuple();
 	#ifdef INT_ATOMS_TYPE
 		newTuple->atoms_ = atoms_ | other.atoms_;
-		newTuple->reductAtoms_ = reductAtoms_ | other.reductAtoms_
+		newTuple->reductAtoms_ = reductAtoms_ | other.reductAtoms_;
+	#ifdef SUPPORTED_CHECK
+		newTuple->supp_ = supp;
+	#endif
 		/*#ifndef USE_PSEUDO
 										 | (other.reductAtoms_ & (1 << (INT_ATOMS_TYPE - 1)))
 		#endif*/
@@ -1573,7 +1685,21 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 			newTuple->pseudo = pseudo || other.pseudo;
 		#endif
 	#endif
-		newTuple->solutions_ = solutions_ * other.solutions_;
+
+#ifdef VEC_ATOMS_TYPE
+		if (speedMode)
+			newTuple->solutions_ = solutions_ * other.solutions_ / info.instance->cost(atoms_, falseAtoms, info);
+		else
+			newTuple->solutions_ = solutions_ * other.solutions_ / info.instance->cost(trueAtoms, falseAtoms, info);
+#else
+#ifndef INT_ATOMS_TYPE
+		newTuple->solutions_ = solutions_ * other.solutions_ / info.instance->cost(trueAtoms, falseAtoms, info);
+#else
+		newTuple->solutions_ = solutions_ * other.solutions_ / info.instance->cost(atoms_ & joinVertices, ~atoms_ & joinVertices, info);
+#endif
+#endif
+
+		/*newTuple->solutions_ = solutions_ * other.solutions_;*/
 
 #ifdef VEC_ATOMS_TYPE
 		if (speedMode)
@@ -1658,6 +1784,12 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 	CertificateDynAspTuple::ESubsetRelation SimpleDynAspTuple::checkRules(const rule_vector & rules, const CertificateDynAspTuple & other, const TreeNodeInfo& info, bool write)
 	{
 
+		if (dynasp::create::passes() < 4)
+			assert(getClone() == this);
+		assert(other.getClone() == &other);
+
+		
+
 		//enforce here a partition of true atoms (1st layer) into trueAtoms (2nd layer) and falseReductAtoms (2nd layer, but true on 1st layer)
 		//furthermore, falseAtoms keeps the same, i.e.\ \bar{atoms_}
 		// check rules
@@ -1698,6 +1830,9 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 					atoms_bar_,
 #endif
 					reductFalseAtoms,
+				#ifdef SUPPORTED_CHECK
+					nullptr,
+				#endif
 					rules, info);
 
 			if (!valid)
@@ -1735,6 +1870,9 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,
 			const atom_vector &reductFalseAtoms,
+		#ifdef SUPPORTED_CHECK
+			atom_vector *supp,
+		#endif
 			const rule_vector &rules,
 			const TreeNodeInfo& info
 			)
@@ -1748,12 +1886,29 @@ DBG(std::endl); DBG("  join "); DBG(atoms_ != other.atoms_ || reductAtoms_ != ot
 				info.instance->rule(rule).check(
 						trueAtoms,
 						falseAtoms,
-						reductFalseAtoms, info);
+						reductFalseAtoms, 
+					#ifdef SUPPORTED_CHECK	
+						supp,
+					#endif
+						info);
 
 			if(si.unsatisfied) return false;
 		}
 
 		return true;
 	}
+
+#ifdef SUPPORTED_CHECK
+	atom_vector SimpleDynAspTuple::checkSupportedRules(const TreeNodeInfo& info)
+	{
+		atom_vector supp = (~atoms_ & info.getAtoms()) | info.int_negatedChoiceAtoms;
+		DBG("PREPRESUPP "); DBG(supp); DBG(std::endl);
+		checkRules(atoms_, ~atoms_ & info.getAtoms() & ~reductAtoms_, reductAtoms_, &supp, info.rememberedRules, info);
+		checkRules(atoms_, ~atoms_ & info.getAtoms() & ~reductAtoms_, reductAtoms_, &supp, info.introducedRules, info);
+		return supp;
+	}
+#endif		
+
+
 
 } // namespace dynasp

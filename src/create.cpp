@@ -22,18 +22,31 @@ namespace dynasp
 	namespace
 	{
 		create::ConfigurationType type_ =  create::PRIMAL_SIMPLETUPLE;
-		bool nonnorm_ = false, redspeed_ = true, compr_ = true;
+		bool nonnorm_ = false, redspeed_ = true, compr_ = true, satonly_ = false, saveRed_ = false, qbf_ = false, supp_ = false, proj_ = false;
 		unsigned passes_ = 3;
 		IGroundAspRuleFactory *ruleFactory_ = nullptr;
 		IGroundAspInstanceFactory *instanceFactory_ = nullptr;
 		IHypergraphConverterFactory *hypergraphConverterFactory_ = nullptr;
 		IDynAspTupleFactory *tupleFactory_ = nullptr;
+		std::string paceOut;
 	}
 
 	create::ConfigurationType create::get()
 	{
 		return type_;
 	}
+
+	void create::setPaceOut(const std::string& pace) { paceOut = pace; }
+	std::string& create::getPaceOut() { return paceOut; }
+
+	void create::setSupported(bool s) { supp_ = s; }
+	bool create::isSupported() { return supp_; }
+
+	void create::setProjection(bool s) { proj_ = s; }
+	bool create::isProjection() { return proj_; }
+
+	bool create::isSatOnly() { return satonly_; }
+	void create::setSatOnly(bool s) { satonly_ = s; }
 
 	unsigned create::passes()
 	{
@@ -135,7 +148,30 @@ namespace dynasp
 		default:
 			return new GroundAspRule();
 		}
+		return nullptr;
 	}
+
+	bool create::isQBFOutput()
+	{
+		return qbf_;
+	}
+
+	void create::setQBFOutput(bool q)
+	{
+		qbf_ = q;
+	}
+
+	bool create::isSaveReductModels()
+	{
+		return saveRed_;
+	}
+
+	void create::setSaveReductModels(bool s)
+	{
+		saveRed_ = s;
+	}
+
+
 
 	IGroundAspInstance *create::instance()
 	{

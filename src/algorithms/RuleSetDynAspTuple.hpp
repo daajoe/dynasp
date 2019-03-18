@@ -101,6 +101,9 @@ namespace dynasp
 #endif
 		//certificate_set certificates_;
 
+#ifdef SUPPORTED_CHECK
+		virtual atom_set checkSupportedRules(const TreeNodeInfo& /*info*/) { return ~0; }
+#endif
 	#ifdef INT_ATOMS_TYPE
 		static bool checkRules(
 				const atom_vector &trueAtoms,
@@ -170,16 +173,32 @@ namespace dynasp
 			RuleConsenseData() : rules(~0), strict(false) { }
 			atom_vector rules;
 			bool strict;
+		#ifdef CACHE_CERTS
+			RuleConsenseList tuples;
+		#else
 			std::vector<RuleConsenseList> tuples;
+		#endif
+			virtual ~RuleConsenseData() { }
+
+			#ifdef REVERSE_EXTENSION_POINTER_SEARCH_IDX
+				std::map<const CertificateDynAspTuple*, bool> ups, tupleSet;
+			#endif
+
+
 		};
 		
 		virtual void setStrict(bool strict, CertificateDynAspTuple::IConsenseData& d) const { if (&d) static_cast<RuleConsenseData&>(d).strict = strict; }
 
 		virtual void updateConsense(const DynAspCertificatePointer& p, CertificateDynAspTuple::IConsenseData *&, const TreeNodeInfo& info, unsigned int pos, htd::vertex_t id) const;
 
-		virtual CertificateDynAspTuple::ESubsetRelation isConsense(CertificateDynAspTuple::IConsenseData &, const TreeNodeInfo& info, unsigned int cnt, const htd::ITreeDecomposition& td, htd::vertex_t node) const;
+
+	#ifdef CACHE_CERTS
+		virtual CertificateDynAspTuple::ESubsetRelation isConsense(CertificateDynAspTuple::IConsenseData &, CertificateDynAspTuple::IConsenseData &, const TreeNodeInfo& info, const htd::ITreeDecomposition& td, htd::vertex_t node, bool strictOcc) const;
+	#else		
+		virtual CertificateDynAspTuple::ESubsetRelation isConsense(CertificateDynAspTuple::IConsenseData &, const TreeNodeInfo& info, unsigned int cnt, const htd::ITreeDecomposition& td, htd::vertex_t node, bool strictOcc) const;
+	#endif
 		
-		virtual void clearConsense(CertificateDynAspTuple::IConsenseData &d) const { delete &d; }
+		//virtual void clearConsense(CertificateDynAspTuple::IConsenseData &d) const { delete &d; }
 #endif
 
 	}; // class RuleSetDynAspTuple

@@ -25,7 +25,11 @@ AM_CPPFLAGS = \
 	-Wdouble-promotion \
 	-Wswitch-default \
 	-fvisibility=hidden \
-	-fvisibility-inlines-hidden
+	-fvisibility-inlines-hidden \
+	-fPIC \
+	-O4 \
+	-std=c++17 \
+	-DNDEBUG
 
 				
 ############################
@@ -84,14 +88,30 @@ libdynasp_la_include_HEADERS = \
 	include/dynasp/TreeNodeInfo.hpp \
 	include/dynasp/DynAspAlgorithm.hpp \
 	include/dynasp/DynAspCertificateAlgorithm.hpp \
+	include/dynasp/DynAspSupportedAlgorithm.hpp \
+	include/dynasp/DynAspProjectionAlgorithm.hpp \
 	\
 	include/dynasp/SortedAtomVector.hpp \
 	include/dynasp/CertificateDynAspTuple.hpp \
-	include/dynasp/ReferenceCounter.hpp
+	include/dynasp/ReferenceCounter.hpp \
+	include/dynasp/ClaspAlgorithm.hpp \
+	#include/dynasp/TopDownFillAlgorithm.hpp \
+	#include/dynasp/TopDownCraftAlgorithm.hpp \
+	#include/dynasp/BottomUpFillAlgorithm.hpp \
+	include/dynasp/DependencyGraphEvaluator.hpp \
+	include/dynasp/JoinEvaluator.hpp \
+	include/dynasp/CombinedEvaluator.hpp
 
 # list all source code files for the libdynasp.la library
 # don't need to list the generated .cc files from bison and flex
 # since automake already knows about them, and adds them automatically
+#src/algorithms/TopDownFillAlgorithm.cpp \
+#\
+#src/algorithms/TopDownCraftAlgorithm.cpp \
+#\
+#src/algorithms/BottomUpFillAlgorithm.cpp \
+#\
+#
 libdynasp_la_SOURCES = \
 	src/assembly.cpp \
 	\
@@ -100,8 +120,12 @@ libdynasp_la_SOURCES = \
 	\
 	src/util/SortedAtomVector.cpp \
 	\
+	src/algorithms/ClaspAlgorithm.cpp \
+	\
 	src/algorithms/DynAspAlgorithm.cpp \
 	src/algorithms/DynAspCertificateAlgorithm.cpp \
+	src/algorithms/DynAspSupportedAlgorithm.cpp \
+	src/algorithms/DynAspProjectionAlgorithm.cpp \
 	src/algorithms/DynAspCountingSolution.cpp \
 	src/algorithms/DynAspCountingSolutionExtractor.cpp \
 	src/algorithms/DynAspCountingSolutionExtractor.hpp \
@@ -121,6 +145,10 @@ libdynasp_la_SOURCES = \
 	src/instances/IncidencePrimalHypergraphConverter.hpp \
 	src/instances/PrimalHypergraphConverter.cpp \
 	src/instances/PrimalHypergraphConverter.hpp \
+	\
+	src/instances/DependencyGraphEvaluator.cpp \
+	src/instances/JoinEvaluator.cpp \
+	src/instances/CombinedEvaluator.cpp \
 	\
 	src/parsers/LParseBisonParser.hpp \
 	src/parsers/LParseBisonParser.yy \
@@ -160,7 +188,8 @@ libdynasp_la_includedir = ${includedir}/dynasp
 #       0 if there is a backwards-compatibility breaking change, otherwise
 #       increase by 1 if CURRENT was increased by one.
 #
-libdynasp_la_LDFLAGS = -version-info 0:0:0
+libdynasp_la_LDFLAGS = -all-static -version-info 0:0:0
+#libdynasp_la_LDFLAGS = -version-info 0:0:0
 
 ############################
 # PROGRAMS TO BUILD:	   #

@@ -18,7 +18,7 @@
 #include <forward_list>
 #include <dynasp/IDynAspTuple.hpp>
 #include <dynasp/ReferenceCounter.hpp>
-
+#include <dynasp/IGroundAspInstance.hpp>
 #include <dynasp/SortedAtomVector.hpp>
 
 namespace dynasp
@@ -29,10 +29,22 @@ namespace dynasp
 	class DYNASP_API CertificateDynAspTuple : public dynasp::IDynAspTuple//, ReferenceCounter
 	{
 	public:
+
+
 		enum ESubsetRelation { ESR_NONE, ESR_EQUAL, ESR_INCLUDED, ESR_INCLUDED_STRICT };
 
+#ifdef BNB_CRAFT_ALGO
+		virtual bool requiresWeightUpdt(const IGroundAspInstance& inst) const { return !weightset_ && containsAnswerSet(inst.currentAnswerSetID()); }
+		virtual void resetWeightSet() { weightset_ = false; }
+		virtual void setWeight(std::size_t wgt) { weight_ = wgt; weightset_ = true; }
+		virtual std::size_t getWeight() const { return weight_; }
+		virtual void setMaxWeight(std::size_t wgt) { mweight_ = wgt; }
+		virtual std::size_t getMaxWeight() const { return mweight_; }
+
+#endif
 		virtual bool cleanUpRoot(const TreeNodeInfo& info);
 		virtual bool cleanUpRoot(htd::vertex_t node, const TreeNodeInfo& info, const htd::ITreeDecomposition &decomposition, INodeTupleSetMap &tuples, bool doDelete);
+		virtual bool cleanUpNonSolRoot(htd::vertex_t node, const TreeNodeInfo& info, const htd::ITreeDecomposition &decomposition, INodeTupleSetMap &tuples, bool doDelete);
 		virtual bool cleanUp();
 		virtual bool cleanUp(htd::vertex_t node, const htd::ITreeDecomposition &decomposition, INodeTupleSetMap &tuples, bool doDelete);
 		virtual void cleanUpSecondLevel() { evolution_.clear(); delete certificate_pointer_set_; certificate_pointer_set_ = nullptr; }
@@ -60,6 +72,12 @@ namespace dynasp
 					const_cast<DynAspCertificatePointer*>(this)->strict |= update;
 				}
 
+				void updateCert(const CertificateDynAspTuple* update) const
+				{
+					//TODO: laugh about this style :D (and change it?!)
+					const_cast<DynAspCertificatePointer*>(this)->cert = update;
+				}
+
 				size_t hash() const
 				{
 					return (reinterpret_cast<size_t>(cert)) | (((size_t)strict) << (8 * sizeof(size_t) - 1));
@@ -78,11 +96,16 @@ namespace dynasp
 #ifdef CHECK_CONSENSE
 		struct IConsenseData 
 		{
+			virtual ~IConsenseData() { }
 		};
 		virtual void updateConsense(const DynAspCertificatePointer&, IConsenseData *&, const TreeNodeInfo&, unsigned int, htd::vertex_t) const { }
 		virtual void setStrict(bool, IConsenseData&) const { }
-		virtual void clearConsense(IConsenseData &) const { }
-		virtual ESubsetRelation isConsense(IConsenseData &, const TreeNodeInfo&, unsigned int, const htd::ITreeDecomposition&, htd::vertex_t) const { return ESR_INCLUDED_STRICT; }
+		//virtual void clearConsense(IConsenseData &) const { }
+	#ifdef CACHE_CERTS
+		virtual ESubsetRelation isConsense(IConsenseData &, IConsenseData &, const TreeNodeInfo&, const htd::ITreeDecomposition&, htd::vertex_t, bool) const { return ESR_INCLUDED_STRICT; }
+	#else
+		virtual ESubsetRelation isConsense(IConsenseData &, const TreeNodeInfo&, unsigned int, const htd::ITreeDecomposition&, htd::vertex_t, bool) const { return ESR_INCLUDED_STRICT; }
+	#endif
 #endif
 		//template <class T>
 		struct DynAspCertificatePointerEqual
@@ -123,15 +146,31 @@ namespace dynasp
 		};*/
 
 #ifdef EXTENSION_POINTER_SET_TYPE
-		typedef std::unordered_set<CertificateDynAspTuple*, std::hash<CertificateDynAspTuple*> > ExtensionPointer;
+		typedef std::unordered_set<CertificateDynAspTuple*, std::hash<CertificateDynAspTuple*> > ExtPtr_;
 #else
 		/*class ExtensionPointer :: public std::vector<CertificateDynAspTuple*>
 		{
 			protected:
 				
 		};*/
-		typedef std::vector<CertificateDynAspTuple *> ExtensionPointer;
+		typedef std::vector<CertificateDynAspTuple *> ExtPtr_;
 #endif
+	#ifdef BNB_CRAFT_ALGO
+		class ExtensionPointer : public ExtPtr_
+		{
+			public:
+				ExtensionPointer() {}
+				ExtensionPointer(std::size_t count) : ExtPtr_(count) { }
+				ExtensionPointer(std::initializer_list<CertificateDynAspTuple*> init) : ExtPtr_(init) { }
+				virtual ~ExtensionPointer() {}
+				void addAnswerSetContrib(std::size_t answer) { answers_.insert(answer); }
+				bool containsAnswerSet(std::size_t answer) const { return answers_.count(answer) == 1; }
+			private:
+				dynasp::AnswerSetContributionCache answers_;
+		};
+	#else
+		typedef ExtPtr_ ExtensionPointer;
+	#endif
 		/*class ExtensionPointer : public std::vector<CertificateDynAspTuple *> {
 		private:
 			std::size_t weight_;
@@ -200,10 +239,12 @@ namespace dynasp
 
 		typedef std::unordered_set<ExtensionPointer, ExtensionPointerHash > ExtensionPointers;
 #else
+		//using ExtensionPointerID = std::vector<std::size_t>;
 #ifdef EXTENSION_POINTERS_LIST_TYPE
 		//typedef std::deque<ExtensionPointer > ExtensionPointers;
 		typedef std::list<ExtensionPointer > ExtensionPointers;
-		/*template <class T>
+		//typedef std::list<ExtensionPointer > ExtPtr_;
+				/*template <class T>
 		class ForwardExtList<T> : public std::forward_list<T>
 		{
 			public:
@@ -211,12 +252,17 @@ namespace dynasp
 		};
 		typedef ForwardExtList<ExtensionPointer > ExtensionPointers;*/
 #else
+		//using ExtensionPointerID = std::size_t* const;
+
+		//typedef std::vector<ExtensionPointer > ExtPtr_;
 		typedef std::vector<ExtensionPointer > ExtensionPointers;
 #endif
+		
 #endif
 	#ifdef USE_OPTIMIZED_EXTENSION_POINTERS
 		typedef ExtensionPointersCache ExtensionPointerTabuList;
 	#endif
+		using ReverseExtensionMap = std::unordered_map<const CertificateDynAspTuple*, std::unordered_set<const CertificateDynAspTuple*> >;
 #ifdef REVERSE_EXTENSION_POINTER_SET_TYPE
 		typedef std::unordered_set<CertificateDynAspTuple *, std::hash<CertificateDynAspTuple*>> ReverseExtensionPointers;
 #else
@@ -228,9 +274,19 @@ namespace dynasp
 		typedef std::vector<DynAspCertificatePointer> Certificate_pointer_set;
 	#endif
 
-		inline CertificateDynAspTuple() : weight_(0), /*introWeight_(0),*/ solutions_(1),
+		inline CertificateDynAspTuple() : weight_(0), 
+									#ifdef BNB_CRAFT_ALGO
+										mweight_(0), weightset_(false), /*introWeight_(0),*/
+									#endif
+									 solutions_(1),
 									#ifdef INT_ATOMS_TYPE
 										  atoms_(0), reductAtoms_(0),
+									#endif
+									#ifdef SUPPORTED_CHECK
+										supp_(0),
+									#endif
+									#ifdef USE_N_PASSES
+										certsdone_(0),
 									#endif
 									#ifdef USE_PSEUDO
 										#ifndef YES_BUT_NO_PSEUDO
@@ -243,9 +299,9 @@ namespace dynasp
 										  certificate_pointer_set_(nullptr), duplicate_(nullptr) { }
 
 		virtual CertificateDynAspTuple* clone() const = 0;
-		CertificateDynAspTuple* clone(Certificate_pointer_set& certificates, const ExtensionPointer& ptr);
-		inline const CertificateDynAspTuple* isClone() const { return duplicate_; }
-		inline const CertificateDynAspTuple* getClone() const { return isClone() != nullptr ? isClone() : this; }
+		CertificateDynAspTuple* clone(Certificate_pointer_set* certificates, const ExtensionPointer& ptr);
+		virtual inline bool isClone() const { return getClone() != this; }
+		virtual inline const CertificateDynAspTuple* getClone() const { return duplicate_ != nullptr ? duplicate_ : this; }
 
 
 
@@ -258,12 +314,15 @@ namespace dynasp
 		virtual size_t joinHash(const atom_vector &atoms, const TreeNodeInfo& info) const;
 //virtual std::size_t joinHash(const vertex_container &atoms) const = 0;
 		size_t hash() const;
+	#ifdef BNB_CRAFT_ALGO
+		virtual std::size_t addExtPtr(ExtensionPointer&& ptr, std::size_t answer);
+	#endif
 		size_t mergeHash() const;
 		virtual void mergeHash(Hash& /*h*/) const { }
 		virtual bool merge(const IDynAspTuple &tuple);
 		virtual IDynAspTuple *project(const TreeNodeInfo &info, size_t child) const;
 		//virtual void /*CertificateDynAspTuple**/ postJoin(const TreeNodeInfo & info, atom_vector& trueAtoms, atom_vector& falseAtoms);
-		const mpz_class& solutionCount() const;
+		const BigNumber& solutionCount() const;
 		size_t solutionWeight() const;
 
 		//TODO: make it better!
@@ -272,6 +331,10 @@ namespace dynasp
 		friend class SimpleDynAspTuple;
 		friend class RuleSetDynAspTuple;
 		friend class DynAspCertificateAlgorithm;
+	#ifdef SUPPORTED_CHECK
+		friend class DynAspSupportedAlgorithm;
+	#endif
+		friend class DynAspProjectionAlgorithm;
 
 		//TODO: remove ugly stuff
 		virtual inline ~CertificateDynAspTuple() { delete certificate_pointer_set_; /*if (duplicate_) const_cast<CertificateDynAspTuple*>(duplicate_)->decrease();*/ };
@@ -313,6 +376,9 @@ namespace dynasp
 		virtual bool isSolution(const TreeNodeInfo& info) const;
 		virtual bool operator==(const ITuple &other) const;
 		virtual void debug() const { }
+
+		virtual bool isNewProjectionOk(unsigned char further) const override;
+		
 	protected:
 
 		//static ExtensionPointersCache extcache;
@@ -339,8 +405,12 @@ namespace dynasp
 			certificate_set;*/
 
 		//TODO: not required for Second Level {
-		std::size_t weight_; //, introWeight_;
-		mpz_class solutions_;
+		std::size_t weight_;
+	#ifdef BNB_CRAFT_ALGO		
+		std::size_t mweight_; //, introWeight_;
+		bool weightset_;
+	#endif
+		BigNumber solutions_;
 		//TODO: }
 
 		//atom_set atoms_, reductAtoms_;
@@ -357,6 +427,15 @@ namespace dynasp
 #endif
 		atom_set atoms_,
 				reductAtoms_;		//TODO: not required for "First" Level
+
+#ifdef SUPPORTED_CHECK
+		atom_set supp_;
+#endif
+
+#ifdef USE_N_PASSES
+		unsigned char certsdone_;
+#endif
+
 #ifdef USE_PSEUDO
 #ifndef YES_BUT_NO_PSEUDO
 		bool pseudo;				//TODO: not required for "First" Level (dangerous?)
@@ -370,6 +449,10 @@ namespace dynasp
 		ExtensionPointers origins_;		//TODO: not required for Second Level
 		ReverseExtensionPointers evolution_;
 
+#ifdef REVERSE_EXTENSION_POINTER_SEARCH_IDX
+		ReverseExtensionMap evolutionWith_;
+#endif
+
 		Certificate_pointer_set* certificate_pointer_set_; //TODO: not required for Second Level
 		const CertificateDynAspTuple* duplicate_;	//TODO: not required for Second Level
 
@@ -377,8 +460,9 @@ namespace dynasp
 		ExtensionPointerTabuList* non_evolution_;
 #endif
 
-		virtual void mergeData(CertificateDynAspTuple* oldExtendedTuple, CertificateDynAspTuple::ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild, bool newTuple = false);
+		virtual void mergeData(CertificateDynAspTuple* oldExtendedTuple, ExtensionPointers::iterator& origin, const TreeNodeInfo& info, htd::vertex_t firstChild, bool newTuple = false);
 
+		Certificate_pointer_set* cloneCertificates(unsigned char pass) const;
 		//TODO: make it fast!
 		//TODO: better integrate this subfunctions in the corresponding main functions,
 		//but for now it seems ok, hence easier to handle & test;
@@ -388,13 +472,17 @@ namespace dynasp
 		//PRECONDITION: project() successfully has been called before
 		virtual void projectPtrs(IDynAspTuple& newTuple);
 
+#ifdef SUPPORTED_CHECK
+		virtual atom_set checkSupportedRules(const TreeNodeInfo& info) = 0;
+#endif
+
 		//PRECONDITION: merge() successfully has been called before
-		virtual void mergePtrs(IDynAspTuple &tuple);
+		virtual void mergePtrs(IDynAspTuple &tuple, bool project);
 
 		//PRECONDITION: join is feasible, i.e. join() successfully has been called before
 		virtual void joinPtrs(IDynAspTuple* tupleleft, IDynAspTuple* tupleright, bool reuseMemory);
 
-		virtual void postEvaluate();
+		virtual void postEvaluate(unsigned char further);
 		//TODO: prevent exponential runtime w.r.t. bag size
 		//TODO: remove this shice!
 		//PRECONDITION: insert is feasible, i.e. insert() successfully has been called before
@@ -436,6 +524,17 @@ namespace dynasp
 
 			return result;
 		}*/
+	public:
+#ifdef BNB_CRAFT_ALGO
+		virtual void setAtoms(const atom_vector& atoms) { atoms_ = atoms; }
+		virtual const atom_vector& getAtoms() const { return atoms_; }
+		virtual const ExtensionPointers& getOrigins() const { return origins_; }	//TODO: not required for Second Level
+		
+		virtual void addAnswerSetContrib(std::size_t answer) { answers_.insert(answer); }
+		virtual bool containsAnswerSet(std::size_t answer) const { return answers_.count(answer) == 1; }
+	private:
+		dynasp::AnswerSetContributionCache answers_;
+#endif
 
 }; // class CertificateDynAspTuple
 

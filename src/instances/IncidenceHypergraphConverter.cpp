@@ -37,7 +37,7 @@ namespace dynasp
 	{
 		//HypergraphFactory &factory = HypergraphFactory::instance();
 		HypergraphFactory factory(inst);// = HypergraphFactory::instance();
-		IMutableHypergraph *hypergraph = factory.getHypergraph();
+		IMutableHypergraph *hypergraph = factory.createInstance();
 
 		for(size_t vertex = instance.maxAtom_; vertex > 0; --vertex)
 			hypergraph->addVertex();

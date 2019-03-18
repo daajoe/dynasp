@@ -13,7 +13,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <dynasp/CertificateDynAspTuple.hpp>
+#include <dynasp/ClaspAlgorithm.hpp>
 #include <csignal>
+#include <dynasp/DependencyGraphEvaluator.hpp>
+#include <dynasp/JoinEvaluator.hpp>
+#include <dynasp/CombinedEvaluator.hpp>
+#include <dynasp/DynAspSupportedAlgorithm.hpp>
+#include <dynasp/DynAspProjectionAlgorithm.hpp>
 
 #ifdef HAVE_UNISTD_H 
 	#include <unistd.h>
@@ -41,11 +47,40 @@ namespace
 		DynAspOptions(int argc, char *argv[])
 		{
 			int opt;
-			while((opt = getopt(argc, argv, "mp:ornvhbds:c:t:l:")) != -1)
+			while((opt = getopt(argc, argv, "P:YXzq:yi:xmp:o:rnSvhbds:c:t:l:")) != -1)
 				switch(opt)
 				{
+				case 'P':
+					this->paceOut = optarg;
+					break;
+				case 'Y':
+					this->projection = true;
+					break;
+				case 'X':
+					this->supported = true;
+					break;
+				case 'z':
+					this->qbfoutput = true;
+					break;
+				case 'y':
+					this->saveReductModels = true;
+					break;
+				case 'S':
+					this->satonly = true;
+					this->passes = 1;
+					break;
+				case 'q':
+					this->folder = optarg;
+					break;
+				case 'x':
+					this->convert2Clasp = true;
+					this->passes = 1;
+					break;
+				case 'i':	//heurIstIc
+					this->heur_mode = (unsigned)strtol(optarg, NULL, 10);
+					break;
 				case 'o':
-					this->tdopt = true;
+					this->tdopt = (unsigned)strtol(optarg, NULL, 10);
 					break;
 				case 'r':
 					this->reductSpeedup = false;
@@ -62,6 +97,11 @@ namespace
 						this->passes = 3;
 					else*/
 					this->passes = (unsigned)strtol(optarg, NULL, 10);
+					#ifdef CACHE_CERTS
+						if (this->passes >= 2)
+							this->children = 2;
+					#endif
+
 					if (this->passes < 3)
 						this->compr = false;
 					break;
@@ -70,7 +110,11 @@ namespace
 					//this->passes = 3;
 					break;
 				case 'l':
-					if (!this->weak)
+					if (!this->weak
+					#ifdef CACHE_CERTS
+						|| (this->passes >= 2)
+					#endif
+					)
 						this->children = 2;
 					else
 						this->children = (unsigned)strtol(optarg, NULL, 10);
@@ -100,6 +144,8 @@ namespace
 					break;
 
 				case 's':
+					if (this->useSeed)
+						this->pid = (unsigned)strtol(optarg, NULL, 10);
 					this->useSeed = true;
 					this->seed = (unsigned)strtol(optarg, NULL, 10);
 					break;
@@ -136,7 +182,7 @@ namespace
 						this->configuration =
 							dynasp::create::INCIDENCEPRIMAL_RULESETTUPLE;
 
-						this->reductSpeedup = false;
+						//this->reductSpeedup = false;
 						break;
 
 					default:
@@ -159,9 +205,15 @@ namespace
 		}
 
 		bool error = false;
+		bool qbfoutput = false;
+		bool supported = false;
+		bool projection = false;
 		bool displayVersion = false; // -v, --version
 		bool reductSpeedup = true; // -v, --version
-		bool tdopt = false; // -v, --version
+		unsigned tdopt = 0; // -v, --version
+		bool convert2Clasp = false; // -v, --version
+		bool saveReductModels = false;
+		bool satonly = false; // -v, --version
 		bool displayHelp = false; // -h, --help
 		bool printBenchmarks = false; // -b, --benchmark
 		bool printMachineReadable = false; // 2x -b, --benchmark
@@ -169,11 +221,19 @@ namespace
 		bool customTreeDecomposition = false; // -t, --tree
 		DecompositionHeuristic heuristic = MINIMUM_FILL_EDGES;
 		bool useSeed = false; // -s, --seed
-		unsigned seed = 0, children = 3, passes = 3;
+		unsigned seed = 0, children = 
+		#ifdef CACHE_CERTS
+			2
+		#else
+			3
+		#endif
+		, passes = 3, heur_mode = 0;
 		bool weak = true, compr = true;
+		unsigned pid = 0;
 		bool readFromFile = false;
 		char *fileToRead = nullptr;
 		bool customConfiguration = false; // -c <config>, --config=<config>
+		std::string folder, paceOut;
 		dynasp::create::ConfigurationType configuration = dynasp::create::PRIMAL_SIMPLETUPLE;
 	};
 
@@ -246,6 +306,10 @@ namespace
 	sharp::Benchmark::interrupt();
 }*/
 
+#ifdef DEBUG_INFO
+	dynasp::DynAspAlgorithm* linkingAlgorithm = nullptr;
+#endif
+
 void printBenchmarks(int signal)
 {
 	std::cout << std::endl;
@@ -253,6 +317,13 @@ void printBenchmarks(int signal)
 	//for (int i = 0; i < 1000; ++i)
 	//printf("asdsdf\n");
 	sharp::Benchmark::printBenchmarks(std::cout, false);
+#ifdef DEBUG_INFO
+	if (linkingAlgorithm)
+		linkingAlgorithm->onExit();
+	else
+		std::cout << "no linking" << std::endl;
+#endif
+
 	//abort();
 	_exit(signal);
 }
@@ -263,13 +334,21 @@ void printBenchmarksMachineReadable(int signal)
 	/*for (int i = 0; i < 1000; ++i)
 	printf("asdsdf\n");*/
 	sharp::Benchmark::printBenchmarks(std::cout, true);
+#ifdef DEBUG_INFO
+	if (linkingAlgorithm)
+		linkingAlgorithm->onExit();
+	else
+		std::cout << "no linking" << std::endl;
+#endif
+
+
 	//abort();
 	_exit(signal);
 }
 
-
 int main(int argc, char *argv[])
 {
+	//assert(false);
 	inst = htd::createManagementInstance(0);
 
 
@@ -319,6 +398,7 @@ int main(int argc, char *argv[])
 	if(opts.useSeed)
 	{
 		std::srand(opts.seed);
+		sharp::Benchmark::setId(opts.pid);
 	}
 
 	if(opts.customTreeDecomposition)
@@ -344,10 +424,16 @@ int main(int argc, char *argv[])
 
 	if(opts.customConfiguration) dynasp::create::set(opts.configuration);
 
+	dynasp::create::setPaceOut(opts.paceOut);
+	dynasp::create::setQBFOutput(opts.qbfoutput);
 	dynasp::create::setNon(!opts.weak);
 	dynasp::create::setReductSpeedup(opts.reductSpeedup);
 	dynasp::create::setPasses(opts.passes);
+	dynasp::create::setSatOnly(opts.satonly);
 	dynasp::create::setCompr(opts.compr);
+	dynasp::create::setSaveReductModels(opts.saveReductModels);
+	dynasp::create::setSupported(opts.supported);
+	dynasp::create::setProjection(opts.projection);
 
 	std::ifstream inputFileStream;
 	std::istream *inputStream = &std::cin;
@@ -371,26 +457,57 @@ int main(int argc, char *argv[])
 	std::unique_ptr<dynasp::IGroundAspInstance> instance(
 		parser->parse(inputStream));
 	parser.reset();
+	if (instance.get())
+	{
+		instance->cleanTmps();
+		if (opts.qbfoutput)
+		{
+			std::ofstream f;
+			f.open(opts.folder + ".qcir");
+			f << instance->toQBFString();
+			f.close();
+		}
+	}
 	sharp::Benchmark::registerTimestamp("parsing time");
 
 	if(!instance.get())
 		exit(EXIT_PARSING_ERROR);
 
 	std::cout << "Initializing solver..." << std::endl;
+	std::cout << "Using " << opts.passes  << " Passes" << std::endl;
 
 /*	std::unique_ptr<htd::ITreeDecompositionAlgorithm> tdAlgorithm(
 			htd::TreeDecompositionAlgorithmFactory::instance()
 			.getTreeDecompositionAlgorithm());*/
 	std::unique_ptr<htd::ITreeDecompositionAlgorithm> tdAlgorithm(
-			htd::TreeDecompositionAlgorithmFactory(inst)
-			.getTreeDecompositionAlgorithm());
+			inst->treeDecompositionAlgorithmFactory().createInstance());
+			//.getTreeDecompositionAlgorithm());
 
 	dynasp::DynAspAlgorithm algorithm;
-	dynasp::DynAspCertificateAlgorithm second_layer_algorithm;
+	dynasp::DynAspCertificateAlgorithm second_layer_algorithm, firstlink;
+	linkingAlgorithm = &second_layer_algorithm;
+#ifdef SUPPORTED_CHECK
+	dynasp::DynAspSupportedAlgorithm supported_algorithm;
+
+	if (opts.supported)
+		linkingAlgorithm = &supported_algorithm;
+
+#endif
+	dynasp::DynAspProjectionAlgorithm projection_algorithm;
+	if (opts.projection)
+		linkingAlgorithm = &projection_algorithm;
+
+/*#ifdef DEBUG_INFO
+	p_algo = linkingAlgorithm; //&second_layer_algorithm;
+#endif*/
+
+	if (opts.passes >= 4)
+		linkingAlgorithm->setFurther(true);
+	
 	std::unique_ptr<dynasp::IDynAspCountingSolutionExtractor> extractor(
 			dynasp::create::countingSolutionExtractor());
 	std::unique_ptr<sharp::ITreeTupleAlgorithm> two_layered_algorithm(
-			sharp::create::treeTupleAlgorithm(algorithm, second_layer_algorithm));
+			sharp::create::treeTupleAlgorithm(algorithm, *linkingAlgorithm));
 
 	instance->setSpeedup(opts.reductSpeedup);
 //#define SINGLE_LAYER
@@ -406,43 +523,104 @@ int main(int argc, char *argv[])
 	std::unique_ptr<sharp::ITreeSolver> solver = nullptr;
 	sharp::TreeTupleAlgorithmVector algs;
 	dynasp::DynAspAlgorithm algorithm2;
+	dynasp::ClaspAlgorithm calgorithm;
 	
-	if (opts.passes >= 2) { //#ifdef SEVERAL_PASSES
+	if (opts.satonly) {
+		solver.reset(sharp::create::treeSolver(*tdAlgorithm, algorithm, *extractor));
+	}
+	else if (opts.passes >= 2) { //#ifdef SEVERAL_PASSES
 		//sharp::TreeTupleAlgorithmVector algs;
 		algs.push_back(&algorithm);
+		if (opts.passes >= 4)
+		{
+			//firstlink.setFurther(true); //OnlyModelsAsCounterwitnesses(true);
+			algs.push_back(&firstlink);
+		}
 
 		if (opts.passes >= 3) { //#ifdef THREE_PASSES
 			//dynasp::DynAspAlgorithm algorithm2;
 			algorithm2.setFurther(true);
-			
+
+			if (!opts.supported && !opts.projection)
 			#ifndef MERGE_PASS_TWO_THREE
 				algs.push_back(&algorithm2);
 			#endif
 		} //#endif
 		
 		#ifdef MERGE_PASS_TWO_THREE
-			/*std::unique_ptr<sharp::ITreeTupleAlgorithm>*/ two_layered_algorithm2.reset(
-			sharp::create::treeTupleAlgorithm(algorithm2, second_layer_algorithm));
 
-			algs.push_back(*two_layered_algorithm2);
+			if (!opts.supported && !opts.projection)
+			{
+				/*std::unique_ptr<sharp::ITreeTupleAlgorithm>*/ two_layered_algorithm2.reset(
+				sharp::create::teeTupleAlgorithm(algorithm2, *linkingAlgorithm)); //second_layer_algorithm));
+				algs.push_back(*two_layered_algorithm2);
+			}
+			else
+			{
+				algs.push_back(linkingAlgorithm);
+
+				//two_layered_algorithm2.reset(sharp::create::teeTupleAlgorithm(*linkingAlgorithm, algorithm2)); //second_layer_algorithm));
+				//algs.push_back(*two_layered_algorithm2);
+			}
 		#else
-			algs.push_back(&second_layer_algorithm);
+			algs.push_back(linkingAlgorithm); //&second_layer_algorithm);
+			/*if (opts.supported)
+			{
+			#ifndef MERGE_PASS_TWO_THREE
+				algs.push_back(&algorithm2);
+			#endif
+				algs.push_back(&second_layer_algorithm);	
+			}*/
+
 		#endif
 		/*std::unique_ptr<sharp::ITreeSolver>*/ solver.reset(
 				sharp::create::treeSolver(*tdAlgorithm, algs, *extractor));
-	} else { //#else
+	} else { 
+		if (!opts.convert2Clasp)
+	//#else
 		/*std::unique_ptr<sharp::ITreeSolver>*/ solver.reset(
 				sharp::create::treeSolver(*tdAlgorithm, *two_layered_algorithm, *extractor));
+		else
+			solver.reset(
+			sharp::create::treeSolver(*tdAlgorithm, calgorithm, *extractor));
+
 	} //#endif
 #endif
 
 	std::cout << "Decomposing..." << std::endl;
-	std::unique_ptr<htd::ITreeDecomposition> td(solver->decompose(*instance, opts.weak, opts.children, opts.tdopt));
+	sharp::ITreeDecompositionEvaluator* eval = nullptr;
+	switch (opts.tdopt)
+	{
+		case 0:
+			break;
+		case 1:
+			eval = new DependencyGraphEvaluator(*instance);
+			linkingAlgorithm->setDepEval((DependencyGraphEvaluator*)(eval));
+			algorithm2.setDepEval((DependencyGraphEvaluator*)(eval));
+			break;
+		case 2:
+			eval = new JoinEvaluator();
+			break;
+		default:
+			eval = new CombinedEvaluator(opts.tdopt, *instance);
+			break;
+	}
+
+	sharp::Benchmark::useOrdering(opts.heur_mode); //opts.printMachineReadable);
+	sharp::Benchmark::setFolder(opts.folder);
+	if (opts.projection)
+	{
+		std::ofstream fox;
+		fox.open(opts.folder);
+		fox.close();
+	}
+	std::unique_ptr<htd::ITreeDecomposition> td(solver->decompose(*instance, opts.weak, opts.children, opts.tdopt, eval));
 	std::cout << "TREEWIDTH: " << td->maximumBagSize() - 1 << std::endl;
 
+	
 	if(!opts.decompositionOnly)
 	{
-		std::cout << "Solving... ";
+		std::cout << "Solving... " << std::flush;
 		std::unique_ptr<dynasp::IDynAspCountingSolution> solution(
 				static_cast<dynasp::IDynAspCountingSolution *>(
 					solver->solve(*instance, *td)));
@@ -454,14 +632,22 @@ int main(int argc, char *argv[])
 		else
 			std::cout << "OPTIMAL WEIGHT: N/A" << std::endl;
 
-		std::cout << "SOLUTION COUNT: " << solution->count() << std::endl;
+		//mpz_class x = solution->count();
+		//mpz_size(solution->count());
+		std::cout << "SOLUTION COUNT: " << solution->count() << "@" << mpz_size(solution->count().get_mpz_t()) <<"," << mpz_sizeinbase(solution->count().get_mpz_t(), 10)  << std::endl;
 	}
 
+	delete eval;
 	if(opts.printBenchmarks)
 	{
 		std::cout << std::endl;
 		sharp::Benchmark::printBenchmarks(std::cout, opts.printMachineReadable);
 	}
+#ifdef DEBUG_INFO
+	linkingAlgorithm->onExit();
+#endif
+	//delete solver.get();
+	_exit(0);
 
 	return EXIT_SUCCESS;
 }

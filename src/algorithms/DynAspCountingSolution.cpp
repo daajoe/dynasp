@@ -9,14 +9,14 @@ namespace dynasp
 	using std::size_t;
 
 	DynAspCountingSolution::DynAspCountingSolution(
-			mpz_class count,
+			BigNumber count,
 			size_t optimalWeight)
 		: count_(count), optimalWeight_(optimalWeight)
 	{ }
 
 	DynAspCountingSolution::~DynAspCountingSolution() { }
 
-	mpz_class DynAspCountingSolution::count() const
+	BigNumber DynAspCountingSolution::count() const
 	{
 		return count_;
 	}

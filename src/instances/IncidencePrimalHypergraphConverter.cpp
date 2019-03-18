@@ -8,6 +8,8 @@
 #include <vector>
 #include <typeinfo>
 #include <stdexcept>
+#include <fstream>
+#include "dynasp/create.hpp"
 
 extern htd::LibraryInstance* inst;
 
@@ -41,11 +43,21 @@ namespace dynasp
 	{
 		HypergraphFactory factory(inst);
 		//HypergraphFactory &factory = HypergraphFactory::instance();
-		IMutableHypergraph *hypergraph = factory.getHypergraph();
+		IMutableHypergraph *hypergraph = factory.createInstance();
 
 		for(size_t vertex = instance.maxAtom_; vertex > 0; --vertex)
 			hypergraph->addVertex();
 
+		std::string& pace = dynasp::create::getPaceOut();
+
+		std::ofstream fo;
+		if (pace.length())
+		{
+			fo.open(pace.c_str());
+			fo << "p" << " graphedge " << "                                                         " << std::endl;
+		}
+
+		size_t edgeCount = 0;
 		for(IGroundAspRule * const &rule : instance.rules_)
 		{
 			if(rule->hasWeightedBody())
@@ -93,7 +105,23 @@ namespace dynasp
 
 					hypergraph->addEdge(ruleVertex, atom);
 				}
+
+				if (pace.length())
+				{
+					for (atom_t atom : *rule)
+					{
+						fo << "e " << atom << " " << ruleVertex << std::endl;
+						edgeCount++;
+					}
+				}
 			}
+		}
+
+		if (pace.length())
+		{
+			fo.seekp(13, std::ios_base::beg);
+			fo << instance.maxAtom_ << " " << edgeCount;
+			fo.close();
 		}
 
 		return hypergraph;

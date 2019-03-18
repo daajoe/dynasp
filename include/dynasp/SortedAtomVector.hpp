@@ -33,18 +33,26 @@ namespace dynasp
 	}
 
 	template <class T, class Target>
-	static bool insertMergedOnce(const T& source, Target& dest)
+	static const T& insertMergedOnce(const T& source, Target& dest, std::size_t* outPos = nullptr)
 	{
-		bool found = false;
+		//bool found = false;
+		std::size_t p = 0;
+		std::size_t& pos = outPos ? *outPos : p;
 		for (auto& existing : dest)
+		{
 			if (source == existing)
 			{
-				found = true;
-				break;
+				return existing;
+				/*found = true;
+				break;*/
 			}
-		if (!found)
+			++pos;
+		}
+		/*if (!found)
 			dest.emplace_back(source);
-		return !found;
+		return !found;*/
+		dest.emplace_back(source);
+		return source;
 	}
 
 	//TODO: move semantics

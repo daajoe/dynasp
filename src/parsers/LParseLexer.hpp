@@ -26,6 +26,10 @@ typedef dynasp::LParseBisonParser::location_type location_type;
 #undef yyFlexLexer
 #endif // __FLEX_LEXER_H
 
+#ifndef FLEX_STD
+	#define FLEX_STD std::
+#endif
+
 namespace dynasp
 {
 	class DYNASP_LOCAL LParseLexer : public LParseFlexLexer

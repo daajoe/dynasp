@@ -23,8 +23,7 @@ namespace dynasp
 			return childData;*/
 		}
 
-
-		//TODO: keep code only on one place!
+//TODO: keep code only on one place!
 		/*dynasp::atom_vector TreeNodeInfo::transform(const atom_vector &&atoms, size_t child) const
 		{
 			atom_vector childData;
@@ -34,6 +33,42 @@ namespace dynasp
 				childData |= ((atoms >> childInfo.atomAtPosition[i]) & atom_vector(1)) << pos++;
 			return childData;
 		}*/
+
+		dynasp::atom_vector TreeNodeInfo::project(const atom_container& atoms) const
+		{
+			atom_vector result = 0;
+			unsigned int pos = 0;
+			for (const auto& atom : introducedAtoms)
+			{
+				if (atoms.count(atom))
+					result |= atom_vector(1) << pos;	
+				++pos;
+			}
+			for (const auto& atom : rememberedAtoms)
+			{
+				if (atoms.count(atom))
+					result |= atom_vector(1) << pos;	
+				++pos;
+			}
+			return result;
+		}
+
+		void TreeNodeInfo::transformAndExtract(const dynasp::atom_vector& atoms, htd::vertex_container& atoms_out) const
+		{
+			unsigned int pos = 0;
+			for (const auto& atom : introducedAtoms)
+			{
+				if (atom_vector(1) & (atoms >> pos))
+					atoms_out.push_back(atom);
+				++pos;
+			}
+			for (const auto& atom : rememberedAtoms)
+			{
+				if (atom_vector(1) & (atoms >> pos))
+					atoms_out.push_back(atom);
+				++pos;
+			}
+		}
 
 		dynasp::atom_vector TreeNodeInfo::rule_transform(const atom_vector &atoms, size_t child) const
 		{
@@ -68,6 +103,25 @@ namespace dynasp
 			pos -= introducedAtoms.size() + rememberedAtoms.size();
 			assert(pos < introducedRules.size() + rememberedRules.size());
 			return pos < introducedRules.size() ? introducedRules[pos] : rememberedRules[pos - introducedRules.size()];
+		}
+
+		dynasp::atom_vector TreeNodeInfo::project(htd::ConstCollection<htd::vertex_t>& atoms) const
+		{
+			atom_vector result = 0;
+			unsigned int pos = 0;
+			for (const auto& atom : introducedAtoms)
+			{
+				if (std::find(atoms.begin(), atoms.end(), atom) != atoms.end())
+					result |= atom_vector(1) << pos;	
+				++pos;
+			}
+			for (const auto& atom : rememberedAtoms)
+			{
+				if (std::find(atoms.begin(), atoms.end(), atom) != atoms.end())
+					result |= atom_vector(1) << pos;	
+				++pos;
+			}
+			return result;
 		}
 
 		dynasp::atom_vector TreeNodeInfo::transform(const atom_vector &atoms, size_t child) const

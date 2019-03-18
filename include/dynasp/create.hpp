@@ -41,8 +41,28 @@ namespace dynasp
 		static bool isCompr();
 		static void setCompr(bool non);
 	
+		static bool isProjection();
+		static void setProjection(bool s);
+
+		static bool isSupported();
+		static void setSupported(bool s);
+
 		static bool reductSpeedup();
 		static void setReductSpeedup(bool rs);
+
+		static bool isQBFOutput();
+		static void setQBFOutput(bool o);
+
+		static void setPaceOut(const std::string& pace);
+		static std::string& getPaceOut();
+
+
+
+		static bool isSatOnly();
+		static void setSatOnly(bool s);
+
+		static bool isSaveReductModels();
+		static void setSaveReductModels(bool s);
 
 		static unsigned passes();
 		static void setPasses(unsigned p);

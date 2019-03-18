@@ -4,8 +4,8 @@
 #include "../util/debug.hpp"
 
 #include "GroundAspRule.hpp"
-#include <cassert>
 #include <dynasp/TreeNodeInfo.hpp>
+#include <sstream>
 
 namespace dynasp
 {
@@ -22,12 +22,126 @@ namespace dynasp
 
 	void GroundAspRule::addHeadAtom(atom_t atom)
 	{
+		//std::cout << atom << Atom::FALSE << std::endl;
 		if(atom != Atom::FALSE) head_.insert(atom);
+	}
+
+	void GroundAspRule::updateDependencyGraph(htd::DirectedGraph& graph) const
+	{
+		for (const auto& h : head_)
+		{
+			for (const auto& b: positiveBody_)
+				graph.addEdge(b.first, h);
+			for (const auto& b: negativeBody_)
+				graph.addEdge(b.first, h);
+		}
+	}
+	
+
+	bool GroundAspRule::isFact() const
+	{
+		return positiveBody_.size() == 0 && negativeBody_.size() == 0 && head_.size() == 1;
+	}
+
+	bool GroundAspRule::isConstrainedNFact() const
+	{
+		return positiveBody_.size() == 1 && negativeBody_.size() == 0 && head_.size() == 0;
+	}
+
+	bool GroundAspRule::isConstrainedFact() const
+	{
+		return positiveBody_.size() == 0 && negativeBody_.size() == 1 && head_.size() == 0;
 	}
 
 	void GroundAspRule::makeChoiceHead()
 	{
 		choiceRule_ = true;
+	}
+
+	bool GroundAspRule::isRule() const
+	{
+		return choiceRule_ || head_.size() > 1 || positiveBody_.size() > 0 || negativeBody_.size() > 0;
+	}
+
+	std::string GroundAspRule::toQBF(bool reduct, unsigned int id) const
+	{
+	//#define DBGV(X) X
+	#define DBGV(X) ""
+		//return std::move("");
+		std::stringstream ss;
+		bool fnd = false;
+		for (auto v : positiveBody_)
+		{
+			if (fnd)
+				ss << ",";	
+			ss << "-" << (reduct ? DBGV("aa") : DBGV("a")) << (reduct ? id + v.first + 0 : v.first + 0);
+			fnd = true;
+		}
+		for (auto v : head_)
+		{
+			if (fnd)
+				ss << ",";	
+			ss << (reduct ? DBGV("aa") : DBGV("a")) << (reduct ? id + v + 0 : v + 0);
+			fnd = true;
+		}
+		for (auto v : negativeBody_)
+		{
+			if (fnd)
+				ss << ",";	
+			ss << DBGV("a") << (v.first + 0);
+			fnd = true;
+		}
+		return std::move(ss.str());
+	}
+
+	const std::string GroundAspRule::toString() const
+	{
+		std::stringstream res;
+		bool first = true;
+		if (choiceRule_)
+			res << " { ";
+		for (const auto& h : head_)
+		{
+			if (!first)
+				res << " ; ";
+			res << "a" << h;
+			first = false;
+		}
+		if (choiceRule_)
+			res << " } ";
+
+		if (isRule())
+			res << " :- ";
+		first = true;
+
+		if (hasWeightedBody())
+			res << minimumBodyWeight_ << " #sum { ";
+		for (const auto& t : positiveBody_)
+		{
+			if (!first)
+				res << (hasWeightedBody() ? " ; " : " , ");
+			if (hasWeightedBody())
+				res << t.second << ", a" << t.first <<  " : a" << t.first;// << " = " <<  t.second;
+			else
+				res << "a" << t.first;
+			first = false;
+		}
+		for (const auto& t : negativeBody_)
+		{
+			if (!first)
+				res << (hasWeightedBody() ? " ; " : " , ");
+			if (hasWeightedBody())
+				res << t.second << ", a" << t.first << " : not " << "a" << t.first;// << " = " <<  t.second;
+			else
+				res << " not " << "a" << t.first;
+			first = false;
+		}
+
+		if (hasWeightedBody())
+			res << " } ";
+		if (!first)
+			res << " , ";
+		return res.str();
 	}
 
 	void GroundAspRule::addPositiveBodyAtom(atom_t atom)
@@ -99,9 +213,17 @@ namespace dynasp
 			const atom_vector &trueAtoms,
 			const atom_vector &falseAtoms,
 			const atom_vector &reductFalseAtoms,
+		
+		#ifdef SUPPORTED_CHECK
+			atom_vector * supp,
+		#endif
+
 			const TreeNodeInfo& info) const
 	{
 		return this->check(trueAtoms, falseAtoms, reductFalseAtoms,
+			#ifdef SUPPORTED_CHECK
+				supp,
+			#endif
 				SatisfiabilityInfo
 				{
 					false,
@@ -112,10 +234,21 @@ namespace dynasp
 				}, info);
 	}
 
+	bool GroundAspRule::isSimpleRule() const
+	{
+		return positiveBody_.size() == 0 && negativeBody_.size() == 0;
+	}
+
 	GroundAspRule::SatisfiabilityInfo GroundAspRule::check(
 			const atom_vector &newTrueAtoms,
 			const atom_vector &newFalseAtoms,
 			const atom_vector &newReductFalseAtoms,
+		
+		#ifdef SUPPORTED_CHECK
+			atom_vector *supp,
+
+		#endif
+
 			GroundAspRule::SatisfiabilityInfo ei,
 			const TreeNodeInfo& info) const
 	{
@@ -167,6 +300,70 @@ namespace dynasp
 			else if((it = negativeBody_.find(atom)) != negativeBody_.end())
 				ei.minBodyWeight += it->second;
 #else
+
+		#ifdef SUPPORTED_CHECK
+			if (supp && (~(*supp) & info.getAtoms()))	//still support required
+			{
+				bool supported = true;
+				std::size_t maxBodyW = ei.maxBodyWeight, suppPos = 0;
+				//std::cout << info.introducedAtoms << "," << info.rememberedAtoms << "," << std::endl;
+				//std::cout << toString() << std::endl;
+				assert(info.introducedAtoms.size() + info.rememberedAtoms.size() >= negativeBody_.size() + positiveBody_.size() + head_.size());
+				for (size_t p = 0; p < info.introducedAtoms.size() + info.rememberedAtoms.size(); ++p)
+				{
+					const atom_t atom = p >= info.introducedAtoms.size() ? info.rememberedAtoms[p - info.introducedAtoms.size()] : info.introducedAtoms[p];
+					DBG("CHECKING "); DBG(atom); DBG(std::endl);
+					if (TO_INT(((~(*supp)) >> p) & 1) && head_.find(atom) != head_.end())	//found it!
+					{
+						suppPos |= (1 << p);		//remember position 
+						DBG("FOUND suppos "); DBG(suppPos); DBG(std::endl);
+					}
+					if (!suppPos && !TO_INT((info.getAtoms() & ~(*supp)) >> (p + 1)))	//anything left?
+					{
+						DBG("NOTHING LEFT"); DBG(std::endl);
+						break;
+					}
+					if ((TO_INT(newReductFalseAtoms | newTrueAtoms) >> p) & 1) 
+					{
+						DBG("TRUE atom "); DBG( negativeBody_.find(atom) != negativeBody_.end()); DBG(" "); DBG(maxBodyW); DBG(",min "); DBG(minimumBodyWeight_); DBG(std::endl);
+						if ((it = negativeBody_.find(atom)) != negativeBody_.end()
+						&& (maxBodyW -= it->second) < minimumBodyWeight_)
+						{
+							supported = false;
+							break;
+						}
+						if (((TO_INT(newReductFalseAtoms) >> p) & 1) &&
+						(it = positiveBody_.find(atom)) != positiveBody_.end()
+						 && (maxBodyW -= it->second) < minimumBodyWeight_)
+						{
+						 	supported = false;
+							break;
+						}
+					}
+					else if ((TO_INT(newFalseAtoms) >> p) & 1)
+					{
+						DBG("FALSE atom "); DBG(std::endl);
+						if ((it = positiveBody_.find(atom)) != positiveBody_.end()
+						&& (maxBodyW -= it->second) < minimumBodyWeight_)
+						{
+							supported = false;
+							break;
+						}
+					}
+				}
+				if (supported) // && suppPos != (std::size_t)(-1))
+				{
+					(*supp) |= suppPos;
+					DBG("RESULT: ==> SUPP!"); DBG(std::endl);
+				}
+				else
+				{
+					DBG("RESULT: ==> NOT SUPP!"); DBG(std::endl);
+				}
+				/*else
+					std::cout << "UNS" << std::endl;*/
+			}
+		#endif
 
 				//std::cout << newTrueAtoms << "," << newReductFalseAtoms << "," << newFalseAtoms << std::endl;
 
@@ -431,3 +628,13 @@ namespace dynasp
 	}
 
 } // namespace dynasp
+
+
+std::ostream& operator<<(std::ostream& os, const dynasp::IGroundAspRule& obj)
+{
+      os << obj.toString();
+      return os;
+}
+
+
+

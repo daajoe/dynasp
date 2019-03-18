@@ -8,6 +8,8 @@
 #include <vector>
 #include <typeinfo>
 #include <stdexcept>
+#include "dynasp/create.hpp"
+#include <fstream>
 
 extern htd::LibraryInstance* inst;
 
@@ -40,23 +42,59 @@ namespace dynasp
 	{
 		HypergraphFactory factory(inst);
 		//HypergraphFactory &factory = HypergraphFactory::instance();
-		IMutableHypergraph *hypergraph = factory.getHypergraph();
+		IMutableHypergraph *hypergraph = factory.createInstance();
+
 
 		for(size_t vertex = instance.maxAtom_; vertex > 0; --vertex)
 			hypergraph->addVertex();
 
+		std::string& pace = dynasp::create::getPaceOut();
+
+		std::ofstream fo;
+		if (pace.length())
+		{
+			fo.open(pace.c_str());
+			fo << "p" << " graphedge " << "                                                         " << std::endl;
+		}
+
+		//std::cout << instance.maxAtom_ << std::endl;
+
+		size_t edgeCount = 0;
 		for(IGroundAspRule * const &rule : instance.rules_)
 		{
 			vector<vertex_t> edge;
 			edge.push_back(hypergraph->addVertex());
 
+			size_t atomCnt = 0;
 			for(const atom_t &atom : *rule)
+			{
 				edge.push_back(atom);
+				atomCnt++;
+			}
 
 			DBG("edge: "); DBG_COLL(edge); DBG(std::endl);
 
 			hypergraph->addEdge(htd::ConstCollection<vertex_t>(
 						edge.begin(), edge.end()));
+			if (pace.length())
+			{
+				edgeCount += (atomCnt * (atomCnt - 1)) / 2;
+				for(const atom_t &atom : *rule)
+				{
+					for(const atom_t &atom2 : *rule)
+					{
+						if (atom2 > atom)
+							fo << "e " << atom << " " << atom2 << std::endl;
+					}
+				}
+			}
+		}
+
+		if (pace.length())
+		{
+			fo.seekp(13, std::ios_base::beg);
+			fo << instance.maxAtom_ << " " << edgeCount;
+			fo.close();
 		}
 
 		return hypergraph;
